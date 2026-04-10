@@ -131,27 +131,47 @@
         <div class="logo-sub">Kraków · Dzielnica XII</div>
       </div>
     </div>
-    <div class="header-right">
-      <button class="btn-pin-mode" id="btnPinMode">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        Dodaj pinezkę
+    <!-- Desktop: przyciski widoczne -->
+    <div class="header-btns desktop-only">
+      <div class="header-right">
+        <button class="btn-pin-mode" id="btnPinMode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          Dodaj pinezkę
+        </button>
+      </div>
+      <button class="btn-about"   id="btnAbout">🏙 O osiedlu</button>
+      <button class="btn-history" id="btnHistory">📅 Historia</button>
+      <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
+      <button class="btn-events" id="btnEvents">📅 Wydarzenia</button>
+      <button class="btn-stats"  id="btnStats">📊 Statystyki</button>
+      <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
+      <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 TD</a>
+      <a href="./tictactoe.html" class="btn-game-link" title="Kółko i Krzyżyk — Multiplayer" style="background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.4);color:#f9a8d4">✖◯ Graj</a>
+      <a href="./extended-map.html" class="btn-extmap-link" id="btnExtMap" title="Rozszerzona mapa — odblokuj przez grę!">🔒 Mapa+</a>
+      <button class="btn-export" id="btnExport" title="Eksportuj budynki">💾 Eksport</button>
+      <a href="#" class="btn-admin-link" title="Panel administratora">⚙</a>
+      <button class="btn-draw" id="btnDraw" title="Zaznacz budynek">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Zaznacz budynek
       </button>
     </div>
-    <button class="btn-about"   id="btnAbout">🏙 O osiedlu</button>
-    <button class="btn-history" id="btnHistory">📅 Historia</button>
-    <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
-    <button class="btn-events" id="btnEvents">📅 Wydarzenia</button>
-    <button class="btn-stats"  id="btnStats">📊 Statystyki</button>
-    <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
-    <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 TD</a>
-    <a href="./tictactoe.html" class="btn-game-link" title="Kółko i Krzyżyk — Multiplayer" style="background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.4);color:#f9a8d4">✖◯ Graj</a>
-    <a href="./extended-map.html" class="btn-extmap-link" id="btnExtMap" title="Rozszerzona mapa — odblokuj przez grę!">🔒 Mapa+</a>
-    <button class="btn-export" id="btnExport" title="Eksportuj budynki">💾 Eksport</button>
-    <a href="./admin.html" class="btn-admin-link" title="Panel administratora">⚙</a>
-    <button class="btn-draw" id="btnDraw" title="Zaznacz budynek (kliknij narożniki, dwuklik = zakończ)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-      Zaznacz budynek
-    </button>
+    <!-- Mobile: hamburger -->
+    <button class="hamburger mobile-only" id="hamburgerBtn">☰</button>
+    <div class="mobile-menu" id="mobileMenu">
+      <button class="mm-close" id="mmClose">✕</button>
+      <nav class="mm-nav">
+        <button class="mm-item" data-for="btnAbout">🏙 O osiedlu</button>
+        <button class="mm-item" data-for="btnHistory">📅 Historia</button>
+        <button class="mm-item" data-for="btnFaq">❓ Pomoc</button>
+        <button class="mm-item" data-for="btnEvents">📅 Wydarzenia</button>
+        <button class="mm-item" data-for="btnStats">📊 Statystyki</button>
+        <button class="mm-item" data-for="btnPatchNotes">📝 Nowości</button>
+        <a href="./game.html" class="mm-item">🎮 Tower Defense</a>
+        <a href="./tictactoe.html" class="mm-item">✖◯ Kółko i Krzyżyk</a>
+        <a href="./extended-map.html" class="mm-item" id="btnExtMapMobile">🔒 Rozszerzona Mapa</a>
+        <button class="mm-item mm-admin" data-for="adminLogin">⚙ Tryb administratora</button>
+      </nav>
+    </div>
   </header>
 
   <!-- ══════════════════════════════════════════════════
@@ -620,6 +640,33 @@
   } catch(e){}
   </script>
   <script>
+  // Hamburger mobile menu
+  (function(){
+    var btn = document.getElementById('hamburgerBtn');
+    var menu = document.getElementById('mobileMenu');
+    if (!btn || !menu) return;
+    var backdrop = document.createElement('div');
+    backdrop.className = 'mm-backdrop';
+    document.body.appendChild(backdrop);
+    function openMenu() { menu.classList.add('open'); backdrop.classList.add('open'); }
+    function closeMenu() { menu.classList.remove('open'); backdrop.classList.remove('open'); }
+    btn.addEventListener('click', openMenu);
+    document.getElementById('mmClose').addEventListener('click', closeMenu);
+    backdrop.addEventListener('click', closeMenu);
+    // Delegate clicks on mm-item to real buttons
+    menu.querySelectorAll('.mm-item[data-for]').forEach(function(item){
+      item.addEventListener('click', function(){
+        var targetId = item.dataset.for;
+        closeMenu();
+        if (targetId === 'adminLogin') {
+          setTimeout(function(){ document.querySelector('.btn-admin-link')?.click(); }, 100);
+        } else {
+          setTimeout(function(){ document.getElementById(targetId)?.click(); }, 100);
+        }
+      });
+    });
+  })();
+
   // Patch notes — pokaż raz na wersję
   (function() {
     var bd = document.getElementById('pnBackdrop');
