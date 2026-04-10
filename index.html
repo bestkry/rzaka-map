@@ -130,6 +130,7 @@
     <button class="btn-about"   id="btnAbout">🏙 O osiedlu</button>
     <button class="btn-history" id="btnHistory">📅 Historia</button>
     <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
+    <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
     <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 TD</a>
     <a href="./tictactoe.html" class="btn-game-link" title="Kółko i Krzyżyk — Multiplayer" style="background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.4);color:#f9a8d4">✖◯ Graj</a>
     <a href="./extended-map.html" class="btn-extmap-link" id="btnExtMap" title="Rozszerzona mapa — odblokuj przez grę!">🔒 Mapa+</a>
@@ -573,10 +574,15 @@
     var bd = document.getElementById('pnBackdrop');
     if (!bd) return;
     bd.style.display = 'flex';
-    document.getElementById('pnClose').addEventListener('click', function() {
+    function closePatchNotes() {
       bd.style.opacity = '0';
       bd.style.transition = 'opacity .3s';
-      setTimeout(function() { bd.remove(); }, 300);
+      setTimeout(function() { bd.style.display = 'none'; bd.style.opacity = ''; bd.style.transition = ''; }, 300);
+    }
+    document.getElementById('pnClose').addEventListener('click', closePatchNotes);
+    bd.addEventListener('click', function(e) { if (e.target === bd) closePatchNotes(); });
+    document.getElementById('btnPatchNotes').addEventListener('click', function() {
+      bd.style.display = 'flex';
     });
   })();
   </script>
