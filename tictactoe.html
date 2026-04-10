@@ -397,6 +397,183 @@ body::after{
 .connection-dot.connected{background:var(--green);box-shadow:0 0 6px var(--green-glow)}
 .connection-dot.error{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,.3)}
 
+/* ─── RANKING BUTTON ──────────────────────────────────────── */
+.ranking-btn{
+  position:fixed;top:16px;right:16px;z-index:200;
+  font-family:var(--font-display);font-size:13px;font-weight:600;
+  color:var(--gold);text-decoration:none;
+  display:flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:var(--radius);
+  background:rgba(22,27,34,.9);border:1px solid rgba(251,191,36,.3);
+  backdrop-filter:blur(10px);
+  cursor:pointer;
+  transition:color var(--transition),border-color var(--transition),background var(--transition),box-shadow var(--transition);
+  letter-spacing:.03em;
+}
+.ranking-btn:hover{
+  background:rgba(22,27,34,1);
+  border-color:rgba(251,191,36,.6);
+  box-shadow:0 0 16px rgba(251,191,36,.15);
+}
+
+/* ─── RANKING OVERLAY ──────────────────────────────────────── */
+.ranking-overlay{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.5);
+  backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease;
+}
+.ranking-overlay.open{
+  opacity:1;pointer-events:all;
+}
+
+/* ─── RANKING PANEL ────────────────────────────────────────── */
+.ranking-panel{
+  position:fixed;top:0;right:0;bottom:0;z-index:400;
+  width:min(380px,100vw);
+  background:rgba(13,17,23,.97);
+  border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.16,1,.3,1);
+  overflow:hidden;
+}
+.ranking-panel.open{
+  transform:translateX(0);
+}
+
+.ranking-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px 16px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.ranking-panel-title{
+  font-family:var(--font-display);
+  font-size:17px;font-weight:700;
+  color:var(--text);
+  letter-spacing:-.01em;
+}
+.ranking-close{
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:var(--radius);
+  color:var(--text-muted);
+  background:transparent;
+  border:1px solid var(--border);
+  cursor:pointer;
+  font-size:16px;
+  transition:all var(--transition);
+}
+.ranking-close:hover{color:var(--text);border-color:var(--border-light)}
+
+.ranking-panel-body{
+  flex:1;overflow-y:auto;
+  padding:16px 20px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent;
+}
+.ranking-panel-body::-webkit-scrollbar{width:4px}
+.ranking-panel-body::-webkit-scrollbar-track{background:transparent}
+.ranking-panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ─── RANKING TABLE ────────────────────────────────────────── */
+.ranking-table{
+  width:100%;border-collapse:collapse;
+  font-family:var(--font-body);
+  font-size:14px;
+}
+.ranking-table th{
+  text-align:left;
+  font-size:11px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-dim);
+  padding:0 10px 10px;
+  border-bottom:1px solid var(--border);
+}
+.ranking-table th:last-child{text-align:right}
+.ranking-table td{
+  padding:10px;
+  border-bottom:1px solid rgba(48,54,61,.4);
+  color:var(--text-muted);
+  vertical-align:middle;
+}
+.ranking-table td:last-child{text-align:right}
+.ranking-table tr:last-child td{border-bottom:none}
+.ranking-table tbody tr{
+  transition:background var(--transition);
+}
+.ranking-table tbody tr:hover{
+  background:rgba(255,255,255,.03);
+}
+
+/* Rank cell */
+.rank-num{
+  font-family:var(--font-display);font-weight:700;
+  font-size:13px;color:var(--text-dim);
+  width:32px;
+}
+.rank-num.rank-1{color:var(--gold);text-shadow:0 0 10px rgba(251,191,36,.4)}
+.rank-num.rank-2{color:#94a3b8}
+.rank-num.rank-3{color:#c07d3c}
+
+/* Nick cell */
+.rank-nick{
+  font-weight:500;color:var(--text);
+  max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.rank-nick.is-me{
+  color:var(--cyan);
+  text-shadow:0 0 8px var(--cyan-glow);
+}
+.rank-row-1 td{background:rgba(251,191,36,.04)}
+
+/* Wins */
+.rank-wins{
+  font-family:var(--font-display);font-weight:700;
+  font-size:15px;color:var(--text);
+}
+.rank-row-1 .rank-wins{color:var(--gold)}
+
+/* Me badge */
+.me-badge{
+  display:inline-block;
+  font-size:9px;font-weight:700;letter-spacing:.05em;
+  background:rgba(96,165,250,.15);color:var(--cyan);
+  border:1px solid rgba(96,165,250,.3);
+  border-radius:4px;padding:1px 5px;
+  margin-left:6px;vertical-align:middle;
+  text-transform:uppercase;
+}
+
+/* Empty / loading */
+.ranking-empty{
+  text-align:center;padding:40px 20px;
+  font-size:14px;color:var(--text-dim);
+}
+.ranking-loader{
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;padding:30px 20px;
+  font-size:13px;color:var(--text-muted);
+}
+.ranking-loader::before{
+  content:'';
+  width:14px;height:14px;
+  border:2px solid var(--border);
+  border-top-color:var(--cyan);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+  flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.ranking-updated{
+  font-size:11px;color:var(--text-dim);
+  text-align:center;margin-top:12px;
+  letter-spacing:.03em;
+}
+
 /* ─── RESPONSIVE ───────────────────────────────────────────── */
 @media(max-width:400px){
   .game-container{padding:16px 12px}
@@ -419,6 +596,23 @@ body::after{
 <body>
 
 <a href="./index.html" class="back-link">← Wróć do mapy</a>
+
+<!-- RANKING BUTTON -->
+<button class="ranking-btn" id="ranking-btn" aria-label="Otwórz ranking">🏆 RANKING</button>
+
+<!-- RANKING OVERLAY -->
+<div class="ranking-overlay" id="ranking-overlay" aria-hidden="true"></div>
+
+<!-- RANKING PANEL -->
+<aside class="ranking-panel" id="ranking-panel" role="dialog" aria-modal="true" aria-label="Ranking">
+  <div class="ranking-panel-header">
+    <span class="ranking-panel-title">🏆 Ranking — Kółko i Krzyżyk</span>
+    <button class="ranking-close" id="ranking-close" aria-label="Zamknij ranking">✕</button>
+  </div>
+  <div class="ranking-panel-body" id="ranking-body">
+    <div class="ranking-loader">Ładowanie…</div>
+  </div>
+</aside>
 
 <div class="game-container">
 
@@ -597,12 +791,16 @@ function playDraw(){
    ═══════════════════════════════════════════════════════════════ */
 let gun = null;
 let room = null;
+let tttLeaderDB = null;
 
 function initGun(){
   if(gun) return;
   try{
     if(typeof Gun === 'undefined') throw new Error('GunDB not loaded');
     gun = Gun(['https://rzaka-relay.onrender.com/gun']);
+    tttLeaderDB = gun.get('rzaka-ttt-leaderboard');
+    // Start listening for leaderboard updates
+    startLeaderboardListener();
   }catch(e){
     console.warn('GunDB init failed:', e);
     setStatus('entry-status','Błąd połączenia z serwerem','error');
@@ -970,6 +1168,7 @@ function handleFinish(status, board){
       text.className = 'result-text result-win';
       sub.textContent = 'Gratulacje!';
       playWin();
+      submitWin();
     } else {
       text.textContent = 'PRZEGRANA!';
       text.className = 'result-text result-lose';
@@ -1080,6 +1279,133 @@ $('btn-back-menu').addEventListener('click', ()=>{
   showScreen('entry');
   setStatus('entry-status','');
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   LEADERBOARD
+   ═══════════════════════════════════════════════════════════════ */
+
+// In-memory leaderboard cache
+let leaderboardData = {}; // key: nick, value: {name, wins, date}
+let leaderboardListenerActive = false;
+
+function startLeaderboardListener(){
+  if(!tttLeaderDB || leaderboardListenerActive) return;
+  leaderboardListenerActive = true;
+  tttLeaderDB.map().on(function(data, key){
+    if(!data || typeof data !== 'object') return;
+    if(data.name && typeof data.wins === 'number'){
+      leaderboardData[key] = {name: data.name, wins: data.wins, date: data.date || 0};
+      if(rankingPanelOpen) renderLeaderboard();
+    }
+  });
+}
+
+function submitWin(){
+  if(!tttLeaderDB || !myNick) return;
+  const key = myNick.toLowerCase().replace(/[^a-z0-9_\-]/g,'_').slice(0,32) || 'player';
+  const existing = leaderboardData[key];
+  const newWins = existing ? existing.wins + 1 : 1;
+  const entry = {name: myNick, wins: newWins, date: Date.now()};
+  leaderboardData[key] = entry;
+  tttLeaderDB.get(key).put(entry);
+  if(rankingPanelOpen) renderLeaderboard();
+}
+
+function renderLeaderboard(){
+  const body = $('ranking-body');
+  if(!body) return;
+
+  const entries = Object.values(leaderboardData)
+    .filter(e => e && typeof e.wins === 'number')
+    .sort((a,b) => b.wins - a.wins)
+    .slice(0, 10);
+
+  if(entries.length === 0){
+    body.innerHTML = '<div class="ranking-empty">Brak danych.<br>Wygraj grę, aby pojawić się w rankingu!</div>';
+    return;
+  }
+
+  let rows = '';
+  const meKey = myNick ? myNick.toLowerCase().replace(/[^a-z0-9_\-]/g,'_').slice(0,32) : null;
+
+  entries.forEach((e, idx)=>{;
+    const rank = idx + 1;
+    const isMe = meKey && e.name && e.name.toLowerCase().replace(/[^a-z0-9_\-]/g,'_').slice(0,32) === meKey;
+    const rankClass = rank <= 3 ? ` rank-${rank}` : '';
+    const rowClass = rank === 1 ? ' rank-row-1' : '';
+    const meBadge = isMe ? '<span class="me-badge">TY</span>' : '';
+    const nickClass = isMe ? ' is-me' : '';
+    let medalEmoji = '';
+    if(rank===1) medalEmoji='🥇 ';
+    else if(rank===2) medalEmoji='🥈 ';
+    else if(rank===3) medalEmoji='🥉 ';
+
+    rows += `<tr class="${rowClass}">
+      <td><span class="rank-num${rankClass}">${medalEmoji || rank}</span></td>
+      <td><span class="rank-nick${nickClass}">${escapeHtml(e.name)}${meBadge}</span></td>
+      <td><span class="rank-wins">${e.wins}</span></td>
+    </tr>`;
+  });
+
+  body.innerHTML = `<table class="ranking-table">
+    <thead><tr>
+      <th>#</th>
+      <th>Nick</th>
+      <th>Wygrane</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p class="ranking-updated">Aktualizowane na bieżąco</p>`;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ─── RANKING PANEL TOGGLE ─────────────────────────────────── */
+let rankingPanelOpen = false;
+
+function openRanking(){
+  rankingPanelOpen = true;
+  $('ranking-panel').classList.add('open');
+  $('ranking-overlay').classList.add('open');
+  $('ranking-overlay').setAttribute('aria-hidden','false');
+
+  if(!tttLeaderDB){
+    $('ranking-body').innerHTML = '<div class="ranking-empty">Ranking niedostępny.<br>Brak połączenia z serwerem.</div>';
+    return;
+  }
+  // Show loader briefly if no data yet
+  if(Object.keys(leaderboardData).length === 0){
+    $('ranking-body').innerHTML = '<div class="ranking-loader">Ładowanie…</div>';
+  } else {
+    renderLeaderboard();
+  }
+}
+
+function closeRanking(){
+  rankingPanelOpen = false;
+  $('ranking-panel').classList.remove('open');
+  $('ranking-overlay').classList.remove('open');
+  $('ranking-overlay').setAttribute('aria-hidden','true');
+}
+
+$('ranking-btn').addEventListener('click', ()=>{
+  if(rankingPanelOpen) closeRanking();
+  else openRanking();
+});
+$('ranking-close').addEventListener('click', closeRanking);
+$('ranking-overlay').addEventListener('click', closeRanking);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && rankingPanelOpen) closeRanking(); });
+
+// Lazy-start listener if Gun was already initted
+function ensureLeaderboardListener(){
+  if(tttLeaderDB && !leaderboardListenerActive) startLeaderboardListener();
+}
 
 /* ═══════════════════════════════════════════════════════════════
    INIT
