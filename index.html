@@ -212,6 +212,26 @@
     <!-- Mobile: hamburger button (menu przeniesione poza header) -->
     <button class="hamburger mobile-only" id="hamburgerBtn">☰</button>
   </header>
+  <!-- STRZAŁKI DO INNYCH OSIEDLI -->
+  <div class="osiedle-nav osiedle-nav-right" id="navRight">
+    <div class="osiedle-nav-arrow">›</div>
+    <div class="osiedle-nav-labels">
+      <span class="osiedle-nav-name">Bieżanów</span>
+      <span class="osiedle-nav-name">Prokocim</span>
+    </div>
+  </div>
+
+  <!-- Modal "Wkrótce" -->
+  <div class="osiedle-soon-backdrop" id="osiedleSoonBackdrop" style="display:none">
+    <div class="osiedle-soon-modal">
+      <div style="font-size:48px;margin-bottom:12px">🏗️</div>
+      <h3 style="color:#e2e8f0;font-size:18px;margin:0 0 8px">Wkrótce dostępne!</h3>
+      <p style="color:#8b949e;font-size:13px;margin:0 0 6px">Mapy osiedli <strong style="color:#f59e0b">Bieżanów</strong> i <strong style="color:#f59e0b">Prokocim</strong> są w przygotowaniu.</p>
+      <p style="color:#6b7280;font-size:12px;margin:0 0 20px">Dzielnica XII — Bieżanów-Prokocim</p>
+      <button onclick="document.getElementById('osiedleSoonBackdrop').style.display='none'" style="padding:10px 28px;background:#3b82f6;border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif">Rozumiem</button>
+    </div>
+  </div>
+
   <!-- MOBILE MENU (poza header żeby działało na iOS) -->
   <div class="mobile-menu" id="mobileMenu">
     <button class="mm-close" id="mmClose">✕</button>
@@ -764,6 +784,11 @@
   } catch(e){}
   </script>
   <script>
+  // Nawigacja do innych osiedli
+  document.getElementById('navRight')?.addEventListener('click', function() {
+    document.getElementById('osiedleSoonBackdrop').style.display = 'flex';
+  });
+
   // Hamburger mobile menu
   (function(){
     var btn = document.getElementById('hamburgerBtn');
