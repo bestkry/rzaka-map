@@ -2294,20 +2294,18 @@ document.addEventListener('keydown', e => {
           return;
         }
 
-        // Reset form
+        // Zamknij panel → wejdź w tryb wyboru miejsca na mapie
+        closePanel();
+        spottedPickMode = true;
         spottedPendingLat = null;
         spottedPendingLng = null;
         spottedPhotoData  = null;
-        photoInput.value  = '';
-        photoPreview.style.display = 'none';
-        photoUpload.style.display  = '';
-        descInput.value   = '';
-        locInfo.textContent = '📍 Kliknij na mapę aby wybrać miejsce';
-        locInfo.classList.remove('done');
-        submitBtn.disabled = true;
-
-        backdrop.style.display = 'flex';
-        closePanel();
+        map.getContainer().style.cursor = 'crosshair';
+        var hint = document.createElement('div');
+        hint.id = 'spottedPickHint';
+        hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5000;background:rgba(13,17,23,.95);border:1.5px solid #f59e0b;border-radius:12px;padding:16px 24px;color:#f59e0b;font-size:14px;font-weight:600;pointer-events:none;text-align:center';
+        hint.innerHTML = '📸 Kliknij na mapę gdzie widzisz tę osobę';
+        document.body.appendChild(hint);
       } catch(err) { console.warn('spotted addBtn:', err); }
     });
 
@@ -2326,27 +2324,31 @@ document.addEventListener('keydown', e => {
         spottedPendingLng = e.latlng.lng;
         spottedPickMode   = false;
         map.getContainer().style.cursor = '';
-        // Usuń hint i pokaż modal z powrotem
+        // Usuń hint
         var hint = document.getElementById('spottedPickHint');
         if (hint) hint.remove();
-        backdrop.style.display = 'flex';
+        // Otwórz formularz z lokalizacją już wybraną
+        photoPreview.style.display = 'none';
+        photoUpload.style.display  = '';
+        photoInput.value = '';
+        descInput.value  = '';
         locInfo.textContent = '✅ Lokalizacja wybrana!';
         locInfo.classList.add('done');
-        checkSpottedSubmit();
+        submitBtn.disabled = true; // wymaga jeszcze zdjęcia i opisu
+        backdrop.style.display = 'flex';
       } catch(err) {}
     });
 
+    // locInfo kliknięcie — pozwala zmienić lokalizację
     locInfo.addEventListener('click', () => {
       if (backdrop.style.display !== 'none') {
         spottedPickMode = true;
         map.getContainer().style.cursor = 'crosshair';
-        // Schowaj modal żeby mapa była klikalna
         backdrop.style.display = 'none';
-        // Pokaż hint na mapie
         var hint = document.createElement('div');
         hint.id = 'spottedPickHint';
         hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5000;background:rgba(13,17,23,.95);border:1.5px solid #f59e0b;border-radius:12px;padding:16px 24px;color:#f59e0b;font-size:14px;font-weight:600;pointer-events:none;text-align:center';
-        hint.innerHTML = '📸 Kliknij na mapę gdzie widzisz tę osobę';
+        hint.innerHTML = '📸 Kliknij nowe miejsce na mapie';
         document.body.appendChild(hint);
       }
     });
@@ -2648,24 +2650,17 @@ document.addEventListener('keydown', e => {
     /* ── Create modal open ────────────────────────────────────────────── */
     addBtn.addEventListener('click', () => {
       try {
-        // Reset form
+        // Zamknij panel → tryb wyboru miejsca na mapie
+        closePanel();
+        melanzPickMode = true;
         melanzPendingLat = null;
         melanzPendingLng = null;
-        titleInput.value    = '';
-        contactInput.value  = '';
-        infoInput.value     = '';
-        timeInput.value     = '20:00';
-        try { dateInput.value = new Date().toISOString().slice(0,10); } catch(e){}
-        locInfo.textContent = '📍 Kliknij na mapę aby wybrać miejsce melanżu';
-        locInfo.classList.remove('done');
-        submitBtn.disabled  = true;
-        selectedEmoji = '🎉';
-        document.querySelectorAll('.melanz-emoji').forEach(b => b.classList.remove('active'));
-        const first = document.querySelector('.melanz-emoji[data-emoji="🎉"]');
-        if (first) first.classList.add('active');
-
-        backdrop.style.display = 'flex';
-        closePanel();
+        map.getContainer().style.cursor = 'crosshair';
+        var hint = document.createElement('div');
+        hint.id = 'melanzPickHint';
+        hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5000;background:rgba(13,17,23,.95);border:1.5px solid #ec4899;border-radius:12px;padding:16px 24px;color:#ec4899;font-size:14px;font-weight:600;pointer-events:none;text-align:center';
+        hint.innerHTML = '🎉 Kliknij na mapę gdzie będzie melanż';
+        document.body.appendChild(hint);
       } catch(err) { console.warn('melanz addBtn:', err); }
     });
 
@@ -2686,10 +2681,18 @@ document.addEventListener('keydown', e => {
         map.getContainer().style.cursor = '';
         var hint = document.getElementById('melanzPickHint');
         if (hint) hint.remove();
-        backdrop.style.display = 'flex';
+        // Otwórz formularz z lokalizacją wybraną
+        titleInput.value = '';
+        contactInput.value = '';
+        infoInput.value = '';
+        try { timeInput.value = '20:00'; } catch(e){}
+        try { dateInput.value = new Date().toISOString().slice(0,10); } catch(e){}
+        selectedEmoji = '🎉';
+        try { document.querySelectorAll('.melanz-emoji').forEach(b => b.classList.toggle('active', b.dataset.emoji === '🎉')); } catch(e){}
         locInfo.textContent = '✅ Lokalizacja wybrana!';
         locInfo.classList.add('done');
-        checkMelanzSubmit();
+        submitBtn.disabled = true;
+        backdrop.style.display = 'flex';
       } catch(err) {}
     });
 
