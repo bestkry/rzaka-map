@@ -2326,7 +2326,11 @@ document.addEventListener('keydown', e => {
         spottedPendingLng = e.latlng.lng;
         spottedPickMode   = false;
         map.getContainer().style.cursor = '';
-        locInfo.textContent = '📍 Lokalizacja wybrana!';
+        // Usuń hint i pokaż modal z powrotem
+        var hint = document.getElementById('spottedPickHint');
+        if (hint) hint.remove();
+        backdrop.style.display = 'flex';
+        locInfo.textContent = '✅ Lokalizacja wybrana!';
         locInfo.classList.add('done');
         checkSpottedSubmit();
       } catch(err) {}
@@ -2336,6 +2340,14 @@ document.addEventListener('keydown', e => {
       if (backdrop.style.display !== 'none') {
         spottedPickMode = true;
         map.getContainer().style.cursor = 'crosshair';
+        // Schowaj modal żeby mapa była klikalna
+        backdrop.style.display = 'none';
+        // Pokaż hint na mapie
+        var hint = document.createElement('div');
+        hint.id = 'spottedPickHint';
+        hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5000;background:rgba(13,17,23,.95);border:1.5px solid #f59e0b;border-radius:12px;padding:16px 24px;color:#f59e0b;font-size:14px;font-weight:600;pointer-events:none;text-align:center';
+        hint.innerHTML = '📸 Kliknij na mapę gdzie widzisz tę osobę';
+        document.body.appendChild(hint);
       }
     });
 
@@ -2672,7 +2684,10 @@ document.addEventListener('keydown', e => {
         melanzPendingLng = e.latlng.lng;
         melanzPickMode   = false;
         map.getContainer().style.cursor = '';
-        locInfo.textContent = '📍 Lokalizacja wybrana!';
+        var hint = document.getElementById('melanzPickHint');
+        if (hint) hint.remove();
+        backdrop.style.display = 'flex';
+        locInfo.textContent = '✅ Lokalizacja wybrana!';
         locInfo.classList.add('done');
         checkMelanzSubmit();
       } catch(err) {}
@@ -2682,6 +2697,12 @@ document.addEventListener('keydown', e => {
       if (backdrop.style.display !== 'none') {
         melanzPickMode = true;
         map.getContainer().style.cursor = 'crosshair';
+        backdrop.style.display = 'none';
+        var hint = document.createElement('div');
+        hint.id = 'melanzPickHint';
+        hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5000;background:rgba(13,17,23,.95);border:1.5px solid #ec4899;border-radius:12px;padding:16px 24px;color:#ec4899;font-size:14px;font-weight:600;pointer-events:none;text-align:center';
+        hint.innerHTML = '🎉 Kliknij na mapę gdzie będzie melanż';
+        document.body.appendChild(hint);
       }
     });
 
