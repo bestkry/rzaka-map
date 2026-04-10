@@ -1007,6 +1007,8 @@ function openAreaModal(area) {
     if (area.photo) { img.src = area.photo; img.style.display = 'block'; ph.style.display = 'none'; }
     else { img.style.display = 'none'; ph.style.display = 'flex'; }
     panel.classList.add('open');
+    // Load likes for this building
+    try { if (typeof window.loadBldgLikes === 'function') window.loadBldgLikes(area); } catch(e) {}
   } catch(e) { console.warn('openAreaModal:', e); }
 }
 
@@ -1735,3 +1737,474 @@ document.addEventListener('keydown', e => {
     try { document.getElementById('setupBackdrop').style.display    = 'none'; } catch(_){}
   } catch(e) { console.warn('keydown handler:', e); }
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   FEATURE 1: BUILDING LIKES (polubienia)
+   Real-time like counter per building via GunDB.
+   ═══════════════════════════════════════════════════════════════ */
+(function initLikes() {
+  try {
+    // In-memory set of liked building IDs (per session)
+    const likedSet = new Set();
+    let currentLikeListener = null;  // to detach old .on() when switching buildings
+
+    // Shorthand DB node (safe if gun is null)
+    function getLikesDB() {
+      try { return gun ? gun.get('rzaka-likes') : null; } catch(e) { return null; }
+    }
+
+    // Called from openAreaModal — loads count and wires up button
+    window.loadBldgLikes = function(area) {
+      try {
+        const btn   = document.getElementById('bldgLikeBtn');
+        const heart = document.getElementById('bldgLikeHeart');
+        const count = document.getElementById('bldgLikeCount');
+        if (!btn || !heart || !count) return;
+
+        const key = 'bldg-' + area.id;
+
+        // Detach previous listener by re-fetching (GunDB deduplicated internally)
+        // Reset UI
+        count.textContent = '0';
+        const isLiked = likedSet.has(area.id);
+        heart.textContent = isLiked ? '♥' : '♡';
+        heart.classList.toggle('liked', isLiked);
+
+        // Real-time listener
+        const db = getLikesDB();
+        if (db) {
+          try {
+            db.get(key).get('count').on(function(val) {
+              try {
+                const n = parseInt(val) || 0;
+                count.textContent = n;
+              } catch(e) {}
+            });
+          } catch(e) { console.warn('likes listener:', e); }
+        }
+
+        // Click handler — remove old and add new
+        const oldBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(oldBtn, btn);
+        const newBtn   = document.getElementById('bldgLikeBtn');
+        const newHeart = document.getElementById('bldgLikeHeart');
+        const newCount = document.getElementById('bldgLikeCount');
+
+        // Restore state after clone
+        newCount.textContent = count.textContent;
+        newHeart.textContent = isLiked ? '♥' : '♡';
+        newHeart.classList.toggle('liked', isLiked);
+
+        newBtn.addEventListener('click', function() {
+          try {
+            const db2 = getLikesDB();
+            if (!db2) return;
+
+            const wasLiked = likedSet.has(area.id);
+
+            // Bounce animation
+            newHeart.classList.remove('bounce');
+            void newHeart.offsetWidth; // reflow
+            newHeart.classList.add('bounce');
+            newHeart.addEventListener('animationend', () => newHeart.classList.remove('bounce'), {once:true});
+
+            if (wasLiked) {
+              // Unlike
+              likedSet.delete(area.id);
+              newHeart.textContent = '♡';
+              newHeart.classList.remove('liked');
+              db2.get(key).get('count').once(function(val) {
+                try {
+                  const cur = Math.max(0, (parseInt(val) || 0) - 1);
+                  db2.get(key).get('count').put(cur);
+                } catch(e) {}
+              });
+            } else {
+              // Like
+              likedSet.add(area.id);
+              newHeart.textContent = '♥';
+              newHeart.classList.add('liked');
+              db2.get(key).get('count').once(function(val) {
+                try {
+                  const cur = (parseInt(val) || 0) + 1;
+                  db2.get(key).get('count').put(cur);
+                } catch(e) {}
+              });
+            }
+          } catch(e) { console.warn('like click:', e); }
+        });
+      } catch(e) { console.warn('loadBldgLikes:', e); }
+    };
+  } catch(e) { console.warn('initLikes:', e); }
+})();
+
+// openAreaModal is already patched inline to call loadBldgLikes.
+
+/* ═══════════════════════════════════════════════════════════════
+   FEATURE 2: EVENTS CALENDAR (system wydarzeń)
+   ═══════════════════════════════════════════════════════════════ */
+(function initEvents() {
+  try {
+    const panel      = document.getElementById('eventsPanel');
+    const btnEvents  = document.getElementById('btnEvents');
+    const eventsClose= document.getElementById('eventsClose');
+    const eventsList = document.getElementById('eventsList');
+    const eventsAdd  = document.getElementById('eventsAdd');
+    const eventSubmit= document.getElementById('eventSubmit');
+
+    if (!panel || !btnEvents) return;
+
+    // ── Open / Close ─────────────────────────────────────────────
+    function openEvents() {
+      panel.classList.add('open');
+      btnEvents.classList.add('open');
+    }
+    function closeEvents() {
+      panel.classList.remove('open');
+      btnEvents.classList.remove('open');
+    }
+
+    btnEvents.addEventListener('click', () =>
+      panel.classList.contains('open') ? closeEvents() : openEvents()
+    );
+    eventsClose.addEventListener('click', closeEvents);
+    map.on('click', closeEvents);
+
+    // ── GunDB ─────────────────────────────────────────────────────
+    function getEventsDB() {
+      try { return gun ? gun.get('rzaka-events') : null; } catch(e) { return null; }
+    }
+
+    // ── Month abbreviations (PL) ──────────────────────────────────
+    const MONTHS = ['STY','LUT','MAR','KWI','MAJ','CZE','LIP','SIE','WRZ','PAŹ','LIS','GRU'];
+
+    // ── Render events list ────────────────────────────────────────
+    let cachedEvents = [];
+
+    function renderEvents() {
+      try {
+        eventsList.innerHTML = '';
+
+        // Show admin add form?
+        if (eventsAdd) {
+          eventsAdd.style.display = (typeof isAdmin !== 'undefined' && isAdmin) ? '' : 'none';
+        }
+
+        if (cachedEvents.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'events-empty';
+          empty.innerHTML = '<div class="events-empty-icon">📅</div><div>Brak nadchodzących wydarzeń</div>';
+          eventsList.appendChild(empty);
+          return;
+        }
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        // Sort: upcoming first, then past
+        const sorted = [...cachedEvents].sort((a, b) => {
+          const da = new Date(a.date);
+          const db2 = new Date(b.date);
+          return da - db2;
+        });
+
+        sorted.forEach(ev => {
+          try {
+            const evDate = new Date(ev.date);
+            const isPast = evDate < today;
+            const isToday = evDate.getTime() === today.getTime();
+
+            const card = document.createElement('div');
+            card.className = 'event-card' + (isPast ? ' event-past' : '') + (isToday ? ' event-today' : '');
+
+            const day   = evDate.getDate();
+            const month = MONTHS[evDate.getMonth()] || '';
+
+            card.innerHTML = `
+              <div class="event-date-badge">
+                <span class="edb-day">${day}</span>
+                <span class="edb-month">${month}</span>
+              </div>
+              <div class="event-body">
+                <div class="event-title-row">
+                  <span class="event-title">${escHtml(ev.title||'Wydarzenie')}</span>
+                  ${isToday ? '<span class="event-today-badge">DZIŚ</span>' : ''}
+                </div>
+                <div class="event-meta">
+                  ${ev.time ? `<span>⏰ ${escHtml(ev.time)}</span>` : ''}
+                  ${ev.place ? `<span>📍 ${escHtml(ev.place)}</span>` : ''}
+                </div>
+                ${ev.desc ? `<div class="event-desc-text">${escHtml(ev.desc)}</div>` : ''}
+              </div>`;
+            eventsList.appendChild(card);
+          } catch(e) {}
+        });
+      } catch(e) { console.warn('renderEvents:', e); }
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Load from GunDB ───────────────────────────────────────────
+    const db = getEventsDB();
+    if (db) {
+      try {
+        db.map().on(function(data, key) {
+          try {
+            if (!data || !data.title) return;
+            // Upsert by key
+            const idx = cachedEvents.findIndex(e => e._key === key);
+            if (idx >= 0) cachedEvents[idx] = { ...data, _key: key };
+            else cachedEvents.push({ ...data, _key: key });
+            renderEvents();
+          } catch(e) {}
+        });
+      } catch(e) { console.warn('eventsDB.map().on:', e); }
+    }
+
+    renderEvents(); // initial (empty) render
+
+    // ── Admin: Add event ──────────────────────────────────────────
+    if (eventSubmit) {
+      eventSubmit.addEventListener('click', () => {
+        try {
+          if (typeof isAdmin === 'undefined' || !isAdmin) return;
+          const db3 = getEventsDB();
+          if (!db3) return;
+
+          const title = (document.getElementById('eventTitle')?.value || '').trim();
+          const date  = (document.getElementById('eventDate')?.value || '').trim();
+          const time  = (document.getElementById('eventTime')?.value || '').trim();
+          const place = (document.getElementById('eventPlace')?.value || '').trim();
+          const desc  = (document.getElementById('eventDesc')?.value || '').trim();
+
+          if (!title || !date) { alert('Podaj nazwę i datę wydarzenia.'); return; }
+
+          const key = 'ev-' + Date.now();
+          const ev  = {
+            title, date, time, place, desc,
+            author:  (typeof profile !== 'undefined' && profile) ? profile.name : 'Admin',
+            created: Date.now()
+          };
+          db3.get(key).put(ev);
+
+          // Clear inputs
+          ['eventTitle','eventDate','eventTime','eventPlace','eventDesc'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+          });
+        } catch(e) { console.warn('eventSubmit:', e); }
+      });
+    }
+
+    // Watch isAdmin changes (re-render to show/hide form)
+    // Check periodically (simple approach)
+    setInterval(() => {
+      try {
+        const shouldShow = typeof isAdmin !== 'undefined' && isAdmin;
+        if (eventsAdd) {
+          eventsAdd.style.display = shouldShow ? '' : 'none';
+        }
+      } catch(e) {}
+    }, 2000);
+
+  } catch(e) { console.warn('initEvents:', e); }
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   FEATURE 3: NEIGHBORHOOD STATS (statystyki osiedla)
+   ═══════════════════════════════════════════════════════════════ */
+(function initStats() {
+  try {
+    const backdrop  = document.getElementById('statsBackdrop');
+    const btnStats  = document.getElementById('btnStats');
+    const statsClose= document.getElementById('statsClose');
+    const statsGrid = document.getElementById('statsGrid');
+
+    if (!backdrop || !btnStats) return;
+
+    // ── Presence (approximate online count) ──────────────────────
+    const myPresenceId = 'u-' + Math.random().toString(36).slice(2,10);
+
+    function pingPresence() {
+      try {
+        if (!gun) return;
+        const nick = (typeof profile !== 'undefined' && profile) ? profile.name : 'Gość';
+        gun.get('rzaka-presence').get(myPresenceId).put({ nick, ts: Date.now() });
+      } catch(e) {}
+    }
+
+    // Ping on load and every 30 s
+    pingPresence();
+    setInterval(pingPresence, 30000);
+
+    // ── Count-up animation ────────────────────────────────────────
+    function countUp(el, target, duration) {
+      try {
+        duration = duration || 800;
+        let start = null;
+        const step = (ts) => {
+          if (!start) start = ts;
+          const progress = Math.min((ts - start) / duration, 1);
+          el.textContent = Math.floor(progress * target);
+          if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      } catch(e) { el.textContent = target; }
+    }
+
+    // ── Build stat card ───────────────────────────────────────────
+    function makeCard(icon, label, initVal) {
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = `<div class="stat-icon">${icon}</div><div class="stat-value">0</div><div class="stat-label">${label}</div>`;
+      const valEl = card.querySelector('.stat-value');
+      valEl.textContent = initVal;
+      return { card, valEl };
+    }
+
+    // ── Open stats ────────────────────────────────────────────────
+    function openStats() {
+      backdrop.style.display = 'flex';
+      btnStats.classList.add('open');
+      loadStats();
+    }
+    function closeStats() {
+      backdrop.style.display = 'none';
+      btnStats.classList.remove('open');
+    }
+
+    btnStats.addEventListener('click', openStats);
+    statsClose.addEventListener('click', closeStats);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeStats(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeStats(); });
+
+    // ── Load + animate stats ─────────────────────────────────────
+    function loadStats() {
+      try {
+        statsGrid.innerHTML = '';
+
+        // 1. Budynki (static)
+        const { card: c1, valEl: v1 } = makeCard('🏢', 'Budynki', 0);
+        statsGrid.appendChild(c1);
+        const bldgCount = (typeof areas !== 'undefined') ? areas.length : 0;
+        countUp(v1, bldgCount);
+
+        // 2. Polubienia (sum across all buildings from GunDB)
+        const { card: c2, valEl: v2 } = makeCard('❤️', 'Polubienia', 0);
+        statsGrid.appendChild(c2);
+
+        // 3. Wiadomości (chat count)
+        const { card: c3, valEl: v3 } = makeCard('💬', 'Wiadomości', 0);
+        statsGrid.appendChild(c3);
+
+        // 4. Gry TD (leaderboard entries)
+        const { card: c4, valEl: v4 } = makeCard('🎮', 'Gry TD', 0);
+        statsGrid.appendChild(c4);
+
+        // 5. Gry TTT
+        const { card: c5, valEl: v5 } = makeCard('✖', 'Gry TTT', 0);
+        statsGrid.appendChild(c5);
+
+        // 6. Wydarzenia (upcoming from cachedEvents or GunDB)
+        const { card: c6, valEl: v6 } = makeCard('📅', 'Wydarzenia', 0);
+        statsGrid.appendChild(c6);
+
+        // 7. Online (presence in last 60 s)
+        const { card: c7, valEl: v7 } = makeCard('🟢', 'Online', 0);
+        statsGrid.appendChild(c7);
+
+        // 8. Awatary (unique profiles)
+        const { card: c8, valEl: v8 } = makeCard('👤', 'Awatary', 0);
+        statsGrid.appendChild(c8);
+
+        if (!gun) return;
+
+        // ── Polubienia: sum all bldg-* count nodes ────────────────
+        try {
+          let totalLikes = 0;
+          gun.get('rzaka-likes').map().once(function(bldgNode) {
+            try {
+              if (bldgNode && typeof bldgNode === 'object') {
+                const c = parseInt(bldgNode.count) || 0;
+                totalLikes += c;
+                countUp(v2, totalLikes);
+              }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Wiadomości: count chat keys ───────────────────────────
+        try {
+          let msgCount = 0;
+          gun.get('rzaka-osiedle-v1').map().once(function(val, key) {
+            try {
+              if (val && key) { msgCount++; countUp(v3, msgCount); }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Gry TD ────────────────────────────────────────────────
+        try {
+          let tdCount = 0;
+          gun.get('rzaka-td-leaderboard-v2').map().once(function(val, key) {
+            try {
+              if (val && key) { tdCount++; countUp(v4, tdCount); }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Gry TTT ───────────────────────────────────────────────
+        try {
+          let tttCount = 0;
+          gun.get('rzaka-ttt-leaderboard').map().once(function(val, key) {
+            try {
+              if (val && key) { tttCount++; countUp(v5, tttCount); }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Wydarzenia ────────────────────────────────────────────
+        try {
+          let evCount = 0;
+          const today2 = new Date(); today2.setHours(0,0,0,0);
+          gun.get('rzaka-events').map().once(function(val, key) {
+            try {
+              if (val && val.date) {
+                const d = new Date(val.date);
+                if (d >= today2) { evCount++; countUp(v6, evCount); }
+              }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Online (presence last 60 s) ───────────────────────────
+        try {
+          const now = Date.now();
+          let onlineCount = 0;
+          gun.get('rzaka-presence').map().once(function(val) {
+            try {
+              if (val && val.ts && (now - val.ts) < 60000) {
+                onlineCount++;
+                countUp(v7, onlineCount);
+              }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+        // ── Awatary (unique users in presence) ────────────────────
+        try {
+          let avatarCount = 0;
+          gun.get('rzaka-presence').map().once(function(val) {
+            try {
+              if (val && val.nick) { avatarCount++; countUp(v8, avatarCount); }
+            } catch(e) {}
+          });
+        } catch(e) {}
+
+      } catch(e) { console.warn('loadStats:', e); }
+    }
+
+  } catch(e) { console.warn('initStats:', e); }
+})();

@@ -20,20 +20,30 @@
   <div class="pn-backdrop" id="pnBackdrop">
     <div class="pn-modal">
       <div class="pn-header">
-        <div class="pn-ver">v2.0</div>
+        <div class="pn-ver">v2.1</div>
         <h2 class="pn-title">Co nowego na mapie?</h2>
-        <p class="pn-date">10 kwietnia 2026</p>
+        <p class="pn-date">10 kwietnia 2026 — aktualizacja popołudniowa</p>
       </div>
       <div class="pn-body">
         <div class="pn-section">
-          <div class="pn-badge pn-new">✨ NOWE</div>
+          <div class="pn-badge pn-new">✨ NOWE w v2.1</div>
           <ul>
-            <li><strong>Gra Tower Defense</strong> — broń osiedla przed 20 falami wrogów z bossami</li>
-            <li><strong>Upgrade wieżyczek</strong> — 3 poziomy ulepszeń z nowymi wizualiami</li>
+            <li><strong>❤️ Polubienia budynków</strong> — kliknij serduszko w panelu budynku, licznik widoczny dla wszystkich</li>
+            <li><strong>📅 Wydarzenia osiedlowe</strong> — kalendarz z nadchodzącymi eventami, badge "DZIŚ"</li>
+            <li><strong>📊 Statystyki osiedla</strong> — live dashboard: budynki, polubienia, wiadomości, gry, online</li>
+            <li><strong>🎮 Przeglądarka pokoi</strong> — Kółko i Krzyżyk: lista otwartych gier zamiast kodów</li>
+            <li><strong>💀 20 fal + bossy</strong> — Tower Defense rozszerzony o trudniejsze fale z mega bossami</li>
+            <li><strong>⬆️ Upgrade wieżyczek</strong> — 3 poziomy ulepszeń (więcej obrażeń, zasięgu)</li>
+            <li><strong>🏆 Rankingi online</strong> — tabele wyników w TD i Kółko i Krzyżyk</li>
+          </ul>
+        </div>
+        <div class="pn-section">
+          <div class="pn-badge pn-new">✨ Wcześniej w v2.0</div>
+          <ul>
+            <li><strong>Gra Tower Defense</strong> — broń osiedla na zdjęciu lotniczym</li>
             <li><strong>Kółko i Krzyżyk multiplayer</strong> — graj z kolegami w czasie rzeczywistym</li>
-            <li><strong>Ranking online</strong> — tabele wyników w obu grach przez relay serwer</li>
-            <li><strong>Rozszerzona mapa</strong> — ukryta nagrodza za ukończenie TD</li>
-            <li><strong>Panel boczny budynku</strong> — kliknij budynek = nazwa, kategoria, zdjęcie, opis</li>
+            <li><strong>Rozszerzona mapa</strong> — ukryta nagroda za ukończenie TD</li>
+            <li><strong>Panel boczny budynku</strong> — nazwa, kategoria, zdjęcie, opis</li>
             <li><strong>31 zaznaczonych budynków</strong> — bloki, szpital, kościół, szkoła, TBS</li>
           </ul>
         </div>
@@ -130,6 +140,8 @@
     <button class="btn-about"   id="btnAbout">🏙 O osiedlu</button>
     <button class="btn-history" id="btnHistory">📅 Historia</button>
     <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
+    <button class="btn-events" id="btnEvents">📅 Wydarzenia</button>
+    <button class="btn-stats"  id="btnStats">📊 Statystyki</button>
     <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
     <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 TD</a>
     <a href="./tictactoe.html" class="btn-game-link" title="Kółko i Krzyżyk — Multiplayer" style="background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.4);color:#f9a8d4">✖◯ Graj</a>
@@ -238,6 +250,14 @@
       <div class="bldg-color-bar" id="bldgColorBar"></div>
       <div class="bldg-category" id="bldgCategory">BLOK</div>
       <h2 class="bldg-name" id="bldgName">Budynek</h2>
+
+      <!-- Polubienia -->
+      <div class="bldg-likes-row">
+        <button class="bldg-like-btn" id="bldgLikeBtn">
+          <span class="like-heart" id="bldgLikeHeart">♡</span>
+          <span class="like-count" id="bldgLikeCount">0</span>
+        </button>
+      </div>
 
       <!-- Zdjęcie -->
       <div class="bldg-photo-area" id="bldgPhotoArea">
@@ -384,6 +404,37 @@
   <!-- My building location hint (top-right, after registration) -->
   <div class="my-building-hint" id="myBuildingHint" style="display:none">
     Twój budynek zaznaczony · <span id="myBuildingReset">Zmień lokalizację</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       EVENTS PANEL (right slide-in)
+       ══════════════════════════════════════════════════ -->
+  <div class="events-panel" id="eventsPanel">
+    <div class="events-header">
+      <h3>📅 Wydarzenia osiedlowe</h3>
+      <button class="chp-close" id="eventsClose">✕</button>
+    </div>
+    <div class="events-list" id="eventsList"></div>
+    <div class="events-add" id="eventsAdd" style="display:none">
+      <div class="events-add-title">➕ Dodaj wydarzenie</div>
+      <input id="eventTitle" placeholder="Nazwa wydarzenia...">
+      <input id="eventDate" type="date">
+      <input id="eventTime" type="time">
+      <input id="eventPlace" placeholder="Miejsce...">
+      <textarea id="eventDesc" placeholder="Opis..."></textarea>
+      <button id="eventSubmit">Dodaj wydarzenie</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       STATS BACKDROP + MODAL
+       ══════════════════════════════════════════════════ -->
+  <div class="stats-backdrop" id="statsBackdrop" style="display:none">
+    <div class="stats-modal">
+      <button class="stats-close" id="statsClose">✕</button>
+      <h2>📊 Statystyki Osiedla Rżąka</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════════════════
