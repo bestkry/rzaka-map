@@ -2447,3 +2447,18 @@ button{cursor:pointer;font:inherit}
   .melanz-panel{width:100%!important}
   .melanz-create-modal{width:96vw!important}
 }
+
+/* ─── COMMENTS ───────────────────────────────────────────────── */
+.popup-comments { margin-top: 10px; border-top: 1px solid #30363d; padding-top: 8px; }
+.popup-comments-title { font-size: 11px; font-weight: 700; color: #6b7280; margin-bottom: 6px; }
+.popup-comments-list { max-height: 120px; overflow-y: auto; }
+.popup-comment { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.popup-comment-author { font-size: 10px; font-weight: 700; color: #60a5fa; margin-right: 4px; }
+.popup-comment-text { font-size: 11px; color: #c9d1d9; }
+.popup-comment-time { font-size: 9px; color: #484f58; margin-left: 6px; }
+.popup-comments-input { display: flex; gap: 4px; margin-top: 6px; }
+.popup-comments-input input { flex: 1; padding: 6px 8px; background: rgba(255,255,255,.05); border: 1px solid #30363d; border-radius: 6px; color: #e2e8f0; font-size: 11px; outline: none; }
+.popup-comments-input input:focus { border-color: #60a5fa; }
+.popup-comments-input button { padding: 6px 10px; background: #3b82f6; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-size: 12px; }
+.popup-comments-no-profile { font-size: 10px; color: #484f58; margin-top: 6px; font-style: italic; }
+.card-comment-counter { font-size: 10px; color: #484f58; margin-top: 4px; cursor: default; }

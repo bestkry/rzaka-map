@@ -2402,6 +2402,91 @@ document.addEventListener('keydown', e => {
       } catch(e) { return ''; }
     }
 
+    /* ── Comment helpers (Spotted) ─────────────────────────── */
+    function renderComment(author, text, ts) {
+      return '<div class="popup-comment">' +
+        '<span class="popup-comment-author">' + escH(author) + '</span>' +
+        '<span class="popup-comment-text">' + escH(text) + '</span>' +
+        '<span class="popup-comment-time">' + timeAgo(ts) + '</span>' +
+        '</div>';
+    }
+
+    function injectSpottedComments(spotKey) {
+      try {
+        const popup = document.querySelector('.rzaka-popup .spotted-popup');
+        if (!popup) return;
+        if (popup.querySelector('.popup-comments')) return;
+
+        const hasProfile = typeof profile !== 'undefined' && profile && profile.name;
+        const inputHtml = hasProfile
+          ? '<div class="popup-comments-input">' +
+              '<input id="cinput-' + escH(spotKey) + '" placeholder="Napisz komentarz…" />' +
+              '<button id="csend-' + escH(spotKey) + '">➤</button>' +
+            '</div>'
+          : '<div class="popup-comments-no-profile">Zarejestruj się żeby komentować</div>';
+
+        const commentsHtml =
+          '<div class="popup-comments" id="comments-' + escH(spotKey) + '">' +
+            '<div class="popup-comments-title">💬 Komentarze</div>' +
+            '<div class="popup-comments-list" id="clist-' + escH(spotKey) + '"></div>' +
+            inputHtml +
+          '</div>';
+
+        popup.insertAdjacentHTML('beforeend', commentsHtml);
+
+        // Load comments in real-time
+        try {
+          if (gun) {
+            const clist = document.getElementById('clist-' + spotKey);
+            const _spComments = {};
+            gun.get('rzaka-spotted-comments').get(spotKey).map().on(function(data, ckey) {
+              try {
+                if (!data || !data.ts) return;
+                _spComments[ckey] = data;
+                if (!clist) return;
+                const sorted = Object.values(_spComments)
+                  .filter(function(c) { return c && c.ts; })
+                  .sort(function(a, b) { return b.ts - a.ts; })
+                  .slice(0, 20);
+                clist.innerHTML = sorted.map(function(c) {
+                  return renderComment(c.author || 'Anonim', c.text || '', c.ts);
+                }).join('');
+              } catch(e) {}
+            });
+          }
+        } catch(e) {}
+
+        // Send button
+        if (hasProfile) {
+          const sendBtn = document.getElementById('csend-' + spotKey);
+          const inputEl = document.getElementById('cinput-' + spotKey);
+          if (sendBtn && inputEl) {
+            function doSendSpottedComment() {
+              try {
+                const text = inputEl.value.trim();
+                if (!text) return;
+                const cKey = 'c-' + Date.now();
+                try {
+                  if (gun) {
+                    gun.get('rzaka-spotted-comments').get(spotKey).get(cKey).put({
+                      author: profile.name,
+                      text:   text,
+                      ts:     Date.now()
+                    });
+                  }
+                } catch(e) {}
+                inputEl.value = '';
+              } catch(e) {}
+            }
+            sendBtn.addEventListener('click', doSendSpottedComment);
+            inputEl.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') doSendSpottedComment();
+            });
+          }
+        }
+      } catch(err) { console.warn('injectSpottedComments:', err); }
+    }
+
     /* ── Render feed ─────────────────────────────────────────────────── */
     function renderFeed() {
       try {
@@ -2433,8 +2518,26 @@ document.addEventListener('keydown', e => {
                   <span class="spm-author">${escH(sp.author||'Anonim')}</span>
                   <span class="spotted-card-time">${timeAgo(sp.ts)}</span>
                 </div>
+                <div class="card-comment-counter" id="scnt-${escH(key)}">💬 0 komentarzy</div>
               </div>
               ${delBtn}`;
+
+            // Load comment count for this spotted card
+            try {
+              if (gun) {
+                const _scKeys = {};
+                gun.get('rzaka-spotted-comments').get(key).map().on(function(data, ckey) {
+                  try {
+                    if (!data || !data.ts) return;
+                    _scKeys[ckey] = true;
+                    const el = document.getElementById('scnt-' + key);
+                    if (!el) return;
+                    const n = Object.keys(_scKeys).length;
+                    el.textContent = '💬 ' + n + ' komentarz' + (n === 1 ? '' : n < 5 ? 'e' : 'y');
+                  } catch(e) {}
+                });
+              }
+            } catch(e) {}
 
             // Click → pan map to location
             card.addEventListener('click', (e) => {
@@ -2503,22 +2606,26 @@ document.addEventListener('keydown', e => {
               .setContent(content)
               .openOn(map);
 
-            // Bind delete after popup opens
+            // Bind delete + inject comments after popup opens
             setTimeout(() => {
-              const btn = document.getElementById('spdel-' + key);
-              if (btn) {
-                btn.addEventListener('click', () => {
-                  try {
-                    if (!confirm('Usunąć tego Spotted?')) return;
-                    const db = getSpottedDB();
-                    if (db) { try { db.get(key).put(null); } catch(err) {} }
-                    removeSpottedMarker(key);
-                    delete cachedSpots[key];
-                    renderFeed();
-                    map.closePopup();
-                  } catch(err) {}
-                });
-              }
+              try {
+                const btn = document.getElementById('spdel-' + key);
+                if (btn) {
+                  btn.addEventListener('click', () => {
+                    try {
+                      if (!confirm('Usunąć tego Spotted?')) return;
+                      const db = getSpottedDB();
+                      if (db) { try { db.get(key).put(null); } catch(err) {} }
+                      removeSpottedMarker(key);
+                      delete cachedSpots[key];
+                      renderFeed();
+                      map.closePopup();
+                    } catch(err) {}
+                  });
+                }
+                // Inject comments section into popup
+                injectSpottedComments(key);
+              } catch(err) {}
             }, 100);
           } catch(err) { console.warn('spotted marker click:', err); }
         });
@@ -2790,6 +2897,97 @@ document.addEventListener('keydown', e => {
       } catch(e) { return m.date || ''; }
     }
 
+    /* ── Comment helpers (Melanż) ─────────────────────────── */
+    function injectMelanzComments(melanzKey) {
+      try {
+        const popup = document.querySelector('.rzaka-popup .melanz-popup');
+        if (!popup) return;
+        if (popup.querySelector('.popup-comments')) return;
+
+        const hasProfile = typeof profile !== 'undefined' && profile && profile.name;
+        const inputHtml = hasProfile
+          ? '<div class="popup-comments-input">' +
+              '<input id="mcinput-' + escH(melanzKey) + '" placeholder="Napisz komentarz…" />' +
+              '<button id="mcsend-' + escH(melanzKey) + '">➤</button>' +
+            '</div>'
+          : '<div class="popup-comments-no-profile">Zarejestruj się żeby komentować</div>';
+
+        const commentsHtml =
+          '<div class="popup-comments" id="mcomments-' + escH(melanzKey) + '">' +
+            '<div class="popup-comments-title">💬 Komentarze</div>' +
+            '<div class="popup-comments-list" id="mclist-' + escH(melanzKey) + '"></div>' +
+            inputHtml +
+          '</div>';
+
+        popup.insertAdjacentHTML('beforeend', commentsHtml);
+
+        // Load comments in real-time
+        try {
+          if (gun) {
+            const clist = document.getElementById('mclist-' + melanzKey);
+            const _mlComments = {};
+            gun.get('rzaka-melanz-comments').get(melanzKey).map().on(function(data, ckey) {
+              try {
+                if (!data || !data.ts) return;
+                _mlComments[ckey] = data;
+                if (!clist) return;
+                const sorted = Object.values(_mlComments)
+                  .filter(function(c) { return c && c.ts; })
+                  .sort(function(a, b) { return b.ts - a.ts; })
+                  .slice(0, 20);
+                clist.innerHTML = sorted.map(function(c) {
+                  return '<div class="popup-comment">' +
+                    '<span class="popup-comment-author">' + escH(c.author || 'Anonim') + '</span>' +
+                    '<span class="popup-comment-text">' + escH(c.text || '') + '</span>' +
+                    '<span class="popup-comment-time">' + getMelanzTimeAgo(c.ts) + '</span>' +
+                    '</div>';
+                }).join('');
+              } catch(e) {}
+            });
+          }
+        } catch(e) {}
+
+        // Send button
+        if (hasProfile) {
+          const sendBtn = document.getElementById('mcsend-' + melanzKey);
+          const inputEl = document.getElementById('mcinput-' + melanzKey);
+          if (sendBtn && inputEl) {
+            function doSendMelanzComment() {
+              try {
+                const text = inputEl.value.trim();
+                if (!text) return;
+                const cKey = 'c-' + Date.now();
+                try {
+                  if (gun) {
+                    gun.get('rzaka-melanz-comments').get(melanzKey).get(cKey).put({
+                      author: profile.name,
+                      text:   text,
+                      ts:     Date.now()
+                    });
+                  }
+                } catch(e) {}
+                inputEl.value = '';
+              } catch(e) {}
+            }
+            sendBtn.addEventListener('click', doSendMelanzComment);
+            inputEl.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') doSendMelanzComment();
+            });
+          }
+        }
+      } catch(err) { console.warn('injectMelanzComments:', err); }
+    }
+
+    function getMelanzTimeAgo(ts) {
+      try {
+        const diff = Date.now() - ts;
+        if (diff <  60000)  return 'przed chwilą';
+        if (diff < 3600000) return Math.floor(diff/60000) + ' min temu';
+        if (diff < 86400000)return Math.floor(diff/3600000) + ' h temu';
+        return Math.floor(diff/86400000) + ' d temu';
+      } catch(e) { return ''; }
+    }
+
     /* ── Render feed ─────────────────────────────────────────────────── */
     function renderFeed() {
       try {
@@ -2835,7 +3033,25 @@ document.addEventListener('keydown', e => {
               </div>
               ${m.contact ? `<div class="melanz-card-contact">📞 ${escH(m.contact)}</div>` : ''}
               ${m.info    ? `<div class="melanz-card-info-text">💬 "${escH(m.info)}"</div>` : ''}
+              <div class="card-comment-counter" id="mcnt-${escH(key)}">💬 0 komentarzy</div>
               ${delBtn}`;
+
+            // Load comment count for this melanż card
+            try {
+              if (gun) {
+                const _mcKeys = {};
+                gun.get('rzaka-melanz-comments').get(key).map().on(function(data, ckey) {
+                  try {
+                    if (!data || !data.ts) return;
+                    _mcKeys[ckey] = true;
+                    const el = document.getElementById('mcnt-' + key);
+                    if (!el) return;
+                    const n = Object.keys(_mcKeys).length;
+                    el.textContent = '💬 ' + n + ' komentarz' + (n === 1 ? '' : n < 5 ? 'e' : 'y');
+                  } catch(e) {}
+                });
+              }
+            } catch(e) {}
 
             // Click → pan to location
             card.addEventListener('click', (e) => {
@@ -2906,20 +3122,24 @@ document.addEventListener('keydown', e => {
               .openOn(map);
 
             setTimeout(() => {
-              const btn = document.getElementById('mldel-' + key);
-              if (btn) {
-                btn.addEventListener('click', () => {
-                  try {
-                    if (!confirm('Usunąć ten melanż?')) return;
-                    const db = getMelanzDB();
-                    if (db) { try { db.get(key).put(null); } catch(err) {} }
-                    removeMelanzMarker(key);
-                    delete cachedMelanze[key];
-                    renderFeed();
-                    map.closePopup();
-                  } catch(err) {}
-                });
-              }
+              try {
+                const btn = document.getElementById('mldel-' + key);
+                if (btn) {
+                  btn.addEventListener('click', () => {
+                    try {
+                      if (!confirm('Usunąć ten melanż?')) return;
+                      const db = getMelanzDB();
+                      if (db) { try { db.get(key).put(null); } catch(err) {} }
+                      removeMelanzMarker(key);
+                      delete cachedMelanze[key];
+                      renderFeed();
+                      map.closePopup();
+                    } catch(err) {}
+                  });
+                }
+                // Inject comments section into popup
+                injectMelanzComments(key);
+              } catch(err) {}
             }, 100);
           } catch(err) { console.warn('melanz marker click:', err); }
         });
