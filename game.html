@@ -166,7 +166,12 @@ canvas#gameCanvas{display:block;cursor:crosshair}
   <h1>🏆 ZWYCIĘSTWO!</h1>
   <h2>Rżąka jest bezpieczna!</h2>
   <div class="score-display" id="v-score">Wynik: 0</div>
-  <button class="big-btn" id="btn-restart2">ZAGRAJ PONOWNIE</button>
+  <div style="margin:20px 0;padding:16px;background:rgba(74,222,128,.1);border:1px solid #4ade80;border-radius:12px">
+    <div style="font-size:20px;margin-bottom:6px">🗺️ Odblokowano: Rozszerzona Mapa!</div>
+    <p style="color:#86efac;font-size:13px;margin-bottom:12px">Ukończenie obrony Rząki odblokowało dostęp do pełnej mapy osiedla</p>
+    <a href="./extended-map.html" class="big-btn" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#4ade80,#22c55e);color:#000;font-weight:800;padding:14px 32px;border-radius:10px;font-size:16px">🔓 OTWORZ ROZSZERZONĄ MAPĘ</a>
+  </div>
+  <button class="big-btn" id="btn-restart2" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid #555">ZAGRAJ PONOWNIE</button>
 </div>
 
 <script>
@@ -1108,6 +1113,9 @@ function update(dt) {
       gameState = 'victory';
       document.getElementById('screen-victory').style.display = '';
       document.getElementById('v-score').textContent = 'Wynik: ' + score;
+      // Odblokuj rozszerzoną mapę
+      try { localStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
+      try { sessionStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
       hideGameUI();
     } else {
       gameState = 'wavepause';
