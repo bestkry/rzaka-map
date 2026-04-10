@@ -234,7 +234,7 @@ const TOTAL_WAVES = 20;
 // --- GUN DB (leaderboard) ---
 let gun = null;
 try {
-  gun = Gun(['https://gun-manhattan.herokuapp.com/gun', 'https://gun-us.herokuapp.com/gun']);
+  gun = Gun(['https://rzaka-relay.onrender.com/gun']);
 } catch(e) { gun = null; }
 const leaderDB = gun ? gun.get('rzaka-td-leaderboard-v2') : null;
 
