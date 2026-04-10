@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Osiedle Rżąka — Mapa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="./style.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════
+       SCI-FI LOADING SCREEN
+       ══════════════════════════════════════════════════ -->
+  <div id="scifiLoader">
+    <canvas id="loaderCanvas"></canvas>
+    <div class="ldr-vignette"></div>
+
+    <div class="ldr-center">
+      <div class="ldr-hex-ring">
+        <svg viewBox="0 0 120 120" fill="none">
+          <polygon class="hex-outer" points="60,4 112,32 112,88 60,116 8,88 8,32" stroke="#00d4ff" stroke-width="1.2" fill="none" opacity=".4"/>
+          <polygon class="hex-inner" points="60,18 98,40 98,80 60,102 22,80 22,40" stroke="#00d4ff" stroke-width="0.8" fill="none" opacity=".25"/>
+          <circle class="hex-pulse" cx="60" cy="60" r="24" stroke="#00d4ff" stroke-width="1.5" fill="none" opacity=".6"/>
+          <circle cx="60" cy="60" r="6" fill="#00d4ff" opacity=".8"/>
+        </svg>
+      </div>
+
+      <div class="ldr-title">
+        <span class="ldr-glitch" data-text="OSIEDLE RŻĄKA">OSIEDLE RŻĄKA</span>
+      </div>
+      <div class="ldr-sub">KRAKÓW · DZIELNICA XII · SEKTOR 12</div>
+
+      <div class="ldr-progress-wrap">
+        <div class="ldr-progress-bar"><div class="ldr-progress-fill" id="ldrFill"></div></div>
+        <div class="ldr-progress-pct" id="ldrPct">0%</div>
+      </div>
+
+      <div class="ldr-log" id="ldrLog">
+        <div class="ldr-log-line active">▶ INICJALIZACJA SYSTEMU…</div>
+      </div>
+    </div>
+
+    <div class="ldr-corner ldr-tl"></div>
+    <div class="ldr-corner ldr-tr"></div>
+    <div class="ldr-corner ldr-bl"></div>
+    <div class="ldr-corner ldr-br"></div>
+    <div class="ldr-scan"></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map"></div>
+  <!-- Draw point counter (shown during building drawing) -->
+  <div id="drawCounter"></div>
+
+  <!-- ══════════════════════════════════════════════════
+       HEADER
+       ══════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="logo">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect x="4"  y="12" width="6"  height="16" rx="1" fill="white" opacity=".25"/>
+        <rect x="12" y="6"  width="8"  height="22" rx="1" fill="white" opacity=".65"/>
+        <rect x="22" y="10" width="6"  height="18" rx="1" fill="white" opacity=".35"/>
+        <rect x="2"  y="28" width="28" height="2.5" rx="1.25" fill="#4ade80"/>
+      </svg>
+      <div>
+        <div class="logo-name">Osiedle Rżąka</div>
+        <div class="logo-sub">Kraków · Dzielnica XII</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-pin-mode" id="btnPinMode">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Dodaj pinezkę
+      </button>
+    </div>
+    <button class="btn-about"   id="btnAbout">🏙 O osiedlu</button>
+    <button class="btn-history" id="btnHistory">📅 Historia</button>
+    <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
+    <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 Graj</a>
+    <button class="btn-export" id="btnExport" title="Eksportuj budynki">💾 Eksport</button>
+    <a href="./admin.html" class="btn-admin-link" title="Panel administratora">⚙</a>
+    <button class="btn-draw" id="btnDraw" title="Zaznacz budynek (kliknij narożniki, dwuklik = zakończ)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      Zaznacz budynek
+    </button>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════
+       CHAT HISTORY PANEL (right drawer)
+       ══════════════════════════════════════════════════ -->
+  <aside class="chat-hist-panel" id="chatHistPanel">
+    <div class="chp-header">
+      <span>💬 Historia chatu osiedla</span>
+      <button class="chp-close" id="chatHistClose">✕</button>
+    </div>
+    <div class="chp-empty" id="chpEmpty">
+      <div>Brak wiadomości</div>
+      <small>Napisz pierwszą!</small>
+    </div>
+    <ul class="chp-list" id="chpList"></ul>
+  </aside>
+
+  <!-- Chat history toggle button -->
+  <button class="chat-hist-toggle" id="chatHistToggle">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat osiedla
+    <span class="chat-hist-badge" id="chatHistBadge">0</span>
+  </button>
+
+  <!-- Pin list drawer toggle button -->
+  <button class="drawer-toggle" id="drawerToggle" aria-label="Lista pinesek">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    Pinezki
+    <span class="drawer-badge" id="drawerBadge">0</span>
+  </button>
+
+  <!-- ══════════════════════════════════════════════════
+       SIDEBAR (pin list)
+       ══════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <span>Pinezki</span>
+      <span class="badge" id="pinCount">0</span>
+    </div>
+    <div class="pin-empty" id="pinEmpty">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+      <span>Brak pinesek</span>
+      <small>Kliknij "Dodaj pinezkę"<br>i kliknij na mapę</small>
+    </div>
+    <ul class="pin-list" id="pinList"></ul>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════
+       MODAL: ADD PIN
+       ══════════════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="addBackdrop">
+    <div class="modal">
+      <div class="modal-title">Nowa pinezka</div>
+      <form id="addForm">
+        <label>Nazwa <span class="req">*</span></label>
+        <input id="pinName" type="text" placeholder="np. Mój blok..." maxlength="50" autocomplete="off" required>
+        <label>Opis</label>
+        <textarea id="pinDesc" rows="3" placeholder="Opcjonalny opis miejsca..." maxlength="300"></textarea>
+        <label>Kolor</label>
+        <div class="colors" id="colorPicker">
+          <button type="button" class="color active" data-c="#22c55e" style="background:#22c55e"></button>
+          <button type="button" class="color" data-c="#3b82f6" style="background:#3b82f6"></button>
+          <button type="button" class="color" data-c="#ef4444" style="background:#ef4444"></button>
+          <button type="button" class="color" data-c="#f59e0b" style="background:#f59e0b"></button>
+          <button type="button" class="color" data-c="#a855f7" style="background:#a855f7"></button>
+          <button type="button" class="color" data-c="#ffffff" style="background:#fff;border:1px solid #ccc"></button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="addCancel">Anuluj</button>
+          <button type="submit" class="btn-save">Dodaj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       MODAL: VIEW / DELETE PIN
+       ══════════════════════════════════════════════════ -->
+  <!-- stary modal backdrop (używany przez pinezki POI) -->
+  <div class="modal-backdrop" id="viewBackdrop">
+    <div class="modal">
+      <div class="modal-title" id="viewTitle">Pinezka</div>
+      <p class="view-desc" id="viewDesc"></p>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn-delete" id="btnDelete">🗑 Usuń</button>
+        <button class="btn-save" id="viewClose">Zamknij</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL BOCZNY BUDYNKU -->
+  <div class="bldg-panel" id="bldgPanel">
+    <button class="bldg-panel-close" id="bldgPanelClose">✕</button>
+    <div class="bldg-panel-inner">
+      <!-- Nagłówek z kolorem -->
+      <div class="bldg-color-bar" id="bldgColorBar"></div>
+      <div class="bldg-category" id="bldgCategory">BLOK</div>
+      <h2 class="bldg-name" id="bldgName">Budynek</h2>
+
+      <!-- Zdjęcie -->
+      <div class="bldg-photo-area" id="bldgPhotoArea">
+        <div class="bldg-photo-placeholder" id="bldgPhotoPlaceholder">
+          <span>📷</span>
+          <p>Kliknij aby dodać zdjęcie</p>
+        </div>
+        <img class="bldg-photo-img" id="bldgPhotoImg" style="display:none" />
+        <input type="file" accept="image/*" id="bldgPhotoInput" style="display:none" />
+      </div>
+
+      <!-- Opis -->
+      <div class="bldg-section">
+        <label class="bldg-label">Opis</label>
+        <textarea class="bldg-textarea" id="bldgDesc" placeholder="Dodaj opis budynku..."></textarea>
+      </div>
+
+      <!-- Info -->
+      <div class="bldg-section">
+        <label class="bldg-label">Informacje</label>
+        <div class="bldg-info-row"><span class="bldg-info-key">Punktów</span><span class="bldg-info-val" id="bldgPts">0</span></div>
+        <div class="bldg-info-row"><span class="bldg-info-key">Kolor</span><span class="bldg-info-val" id="bldgClr">#3b82f6</span></div>
+      </div>
+
+      <!-- Akcje -->
+      <div class="bldg-actions">
+        <button class="bldg-btn-save" id="bldgSave">✓ Zapisz zmiany</button>
+        <button class="bldg-btn-delete" id="bldgDelete">🗑 Usuń budynek</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       MODAL: NEW BUILDING — name + type color
+       (display:none — shown by finishArea())
+       ══════════════════════════════════════════════════ -->
+  <div class="modal-backdrop" id="areaEditBackdrop" style="display:none">
+    <div class="modal" style="width:340px">
+      <div class="modal-title" style="margin-bottom:4px">🏢 Nowy budynek</div>
+      <p style="font-size:12px;color:#6e7681;margin-bottom:16px">Podaj nazwę i wybierz typ budynku</p>
+      <input id="areaEditName" class="pin-input" placeholder="Nazwa budynku..." style="width:100%;margin-bottom:14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-family:inherit;font-size:13px;padding:8px 12px;outline:none;" />
+      <div style="font-size:12px;color:#8b949e;margin-bottom:8px">Typ budynku:</div>
+      <div id="areaColorPicker" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+        <button class="area-color-btn active" data-color="#3b82f6" title="Blok mieszkalny" style="background:#3b82f6">Blok</button>
+        <button class="area-color-btn"        data-color="#60a5fa" title="Wieżowiec"        style="background:#60a5fa">Wieża</button>
+        <button class="area-color-btn"        data-color="#22c55e" title="Domy / zabudowa niska" style="background:#22c55e">Dom</button>
+        <button class="area-color-btn"        data-color="#ef4444" title="Szpital / ważny"  style="background:#ef4444">Szpital</button>
+        <button class="area-color-btn"        data-color="#a855f7" title="Kościół"          style="background:#a855f7">Kościół</button>
+        <button class="area-color-btn"        data-color="#f59e0b" title="Szkoła / użyteczność" style="background:#f59e0b">Szkoła</button>
+        <button class="area-color-btn"        data-color="#64748b" title="Administracja / inne" style="background:#64748b">Inne</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-delete" id="areaEditCancel">Anuluj</button>
+        <button class="btn-save"   id="areaEditSave">✓ Zapisz</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SETUP MODAL — 3-step registration
+       (display:none — shown by onScanComplete() for new users)
+       ══════════════════════════════════════════════════ -->
+  <div class="setup-backdrop" id="setupBackdrop" style="display:none">
+    <div class="setup-box">
+
+      <!-- Step indicators -->
+      <div class="setup-steps">
+        <div class="setup-step-dot active" data-step="1"></div>
+        <div class="setup-step-line"></div>
+        <div class="setup-step-dot" data-step="2"></div>
+        <div class="setup-step-line"></div>
+        <div class="setup-step-dot" data-step="3"></div>
+      </div>
+
+      <!-- Step 1: Profile -->
+      <div class="setup-page" id="setupPage1">
+        <div class="setup-logo">👋</div>
+        <h2>Witaj na Osiedlu Rżąka</h2>
+        <p>Dołącz do chatu swojego osiedla</p>
+        <label>Pseudonim <span class="req">*</span></label>
+        <input id="setupName" type="text" placeholder="Twoje imię lub nick..." maxlength="24" autocomplete="off">
+        <label>Nazwa budynku <span style="opacity:.45;font-weight:400">(opcjonalnie)</span></label>
+        <input id="setupBuilding" type="text" placeholder="np. Rydygiera 5, blok A..." maxlength="40" autocomplete="off">
+        <button class="setup-btn" id="setupNext1">Dalej →</button>
+      </div>
+
+      <!-- Step 2: Avatar -->
+      <div class="setup-page" id="setupPage2" style="display:none">
+        <h2>Wybierz avatar</h2>
+        <p>Będzie widoczny przy Twoich wiadomościach</p>
+        <div class="avatar-grid" id="avatarGrid">
+          <button class="av-btn active" data-av="./avatars/av01.webp" title="Cyborg"><img src="./avatars/av01.webp" alt="Cyborg" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av02.webp" title="Netrunner"><img src="./avatars/av02.webp" alt="Netrunner" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av03.webp" title="Android"><img src="./avatars/av03.webp" alt="Android" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av04.webp" title="Samuraj"><img src="./avatars/av04.webp" alt="Samuraj" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av05.webp" title="Haker"><img src="./avatars/av05.webp" alt="Haker" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av06.webp" title="Czaszka"><img src="./avatars/av06.webp" alt="Czaszka" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av07.webp" title="Alien"><img src="./avatars/av07.webp" alt="Alien" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av08.webp" title="Kotek"><img src="./avatars/av08.webp" alt="Kotek" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av09.webp" title="Czarownik"><img src="./avatars/av09.webp" alt="Czarownik" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av10.webp" title="Rajder"><img src="./avatars/av10.webp" alt="Rajder" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av11.webp" title="Ninja"><img src="./avatars/av11.webp" alt="Ninja" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av12.webp" title="Glitch"><img src="./avatars/av12.webp" alt="Glitch" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av13.webp" title="Detektyw"><img src="./avatars/av13.webp" alt="Detektyw" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av14.webp" title="Astronauta"><img src="./avatars/av14.webp" alt="Astronauta" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av15.webp" title="Medyk"><img src="./avatars/av15.webp" alt="Medyk" width="56" height="56"></button>
+          <button class="av-btn" data-av="./avatars/av16.webp" title="Ghost"><img src="./avatars/av16.webp" alt="Ghost" width="56" height="56"></button>
+        </div>
+        <div class="setup-row">
+          <button class="setup-btn-back" id="setupBack2">← Wróć</button>
+          <button class="setup-btn" id="setupNext2">Dalej →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Building pick -->
+      <div class="setup-page" id="setupPage3" style="display:none">
+        <h2>Zaznacz swój budynek</h2>
+        <p>Kliknij swój blok na mapie — tam będą pojawiać się Twoje wiadomości</p>
+        <div class="setup-pick" id="setupPick">
+          <div class="pick-dot" id="pickDot"></div>
+          <span id="pickLabel">Kliknij swój budynek na mapie →</span>
+        </div>
+        <div class="setup-row">
+          <button class="setup-btn-back" id="setupBack3">← Wróć</button>
+          <button class="setup-btn" id="setupDone" disabled>Dołącz! 🎉</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       CHAT BAR (bottom, shown after registration)
+       ══════════════════════════════════════════════════ -->
+  <div class="chat-bar" id="chatBar" style="display:none">
+    <div class="chat-me">
+      <span class="chat-avatar" id="chatAvatar">?</span>
+      <span class="chat-name"   id="chatName">Ty</span>
+    </div>
+    <input class="chat-input" id="chatInput" placeholder="Napisz wiadomość do sąsiadów..." maxlength="160" autocomplete="off">
+    <button class="chat-send" id="chatSend">Wyślij</button>
+  </div>
+
+  <!-- My building location hint (top-right, after registration) -->
+  <div class="my-building-hint" id="myBuildingHint" style="display:none">
+    Twój budynek zaznaczony · <span id="myBuildingReset">Zmień lokalizację</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       FAQ PANEL (right slide-in)
+       ══════════════════════════════════════════════════ -->
+  <div class="faq-panel" id="faqPanel">
+    <div class="faq-header">
+      <span>❓ Jak korzystać z mapy</span>
+      <button class="chp-close" id="faqClose">✕</button>
+    </div>
+    <div class="faq-body">
+      <div class="faq-item">
+        <div class="faq-q">📍 Jak dodać pinezkę?</div>
+        <div class="faq-a">Kliknij <strong>Dodaj pinezkę</strong> w górnym menu — kursor zmienia się w celownik. Kliknij dowolne miejsce na mapie, wpisz nazwę i opis.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">✏️ Jak zaznaczyć budynek?</div>
+        <div class="faq-a">Kliknij <strong>Zaznacz budynek</strong> (prawy górny róg). Klikaj narożniki budynku jeden po drugim. <strong>Dwuklik</strong> zamyka obrys. Po najechaniu budynek podświetla się.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">💬 Jak działa chat?</div>
+        <div class="faq-a">Podaj pseudonim i avatar, kliknij swój budynek na mapie. Twoje wiadomości pojawią się jako dymki nad Twoim blokiem widoczne dla wszystkich odwiedzających.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">🗺️ Jak przesunąć marker?</div>
+        <div class="faq-a">Markery miejsc (Park, Szkoła, Kościół itd.) możesz <strong>przeciągać</strong> w dowolne miejsce. Pozycja zostanie zapamiętana w Twojej przeglądarce.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">🔍 Jak nawigować po mapie?</div>
+        <div class="faq-a"><strong>Scroll</strong> → zoom · <strong>Lewy przycisk + przeciągnij</strong> → przesuwanie · <strong>Kliknij marker</strong> → szczegóły miejsca.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">👤 Jak zmienić profil?</div>
+        <div class="faq-a">Kliknij <strong>Zmień lokalizację</strong> w prawym górnym rogu — otworzy się panel rejestracji od nowa.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">⏱️ Jak długo widoczne są wiadomości?</div>
+        <div class="faq-a">Dymki na mapie znikają po <strong>10 minutach</strong>. Historia chatu przechowuje ostatnie 20 wiadomości z sesji.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       ABOUT OVERLAY — hero video
+       ══════════════════════════════════════════════════ -->
+  <div class="about-overlay" id="aboutOverlay">
+    <video class="about-video" id="aboutVideo" autoplay muted loop playsinline>
+      <source src="./hero.mp4" type="video/mp4">
+    </video>
+    <div class="about-vignette"></div>
+    <button class="about-close" id="aboutClose">✕ Zamknij</button>
+    <div class="about-content">
+      <div class="about-tag">OSIEDLE RŻĄKA · KRAKÓW</div>
+      <h1 class="about-title">Dzielnica XII<br>Bieżanów-Prokocim</h1>
+      <p class="about-desc">Osiedle zbudowane w latach 1987–1994, projekt G. Bodzenty i Z. Nesterskiego. Bloki 4-, 5- i 11-kondygnacyjne wokół parku Rżąka o powierzchni 3,49 ha. Dom dla tysięcy mieszkańców Krakowa.</p>
+      <div class="about-stats">
+        <div class="about-stat"><div class="about-stat-val">1987</div><div class="about-stat-lbl">Rok budowy</div></div>
+        <div class="about-stat"><div class="about-stat-val">3,49 ha</div><div class="about-stat-lbl">Park Rżąka</div></div>
+        <div class="about-stat"><div class="about-stat-val">Dz. XII</div><div class="about-stat-lbl">Bieżanów-Prokocim</div></div>
+        <div class="about-stat"><div class="about-stat-val">4–11</div><div class="about-stat-lbl">Kondygnacje</div></div>
+      </div>
+      <button class="about-map-btn" id="aboutMapBtn">→ Otwórz mapę</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       HISTORY OVERLAY — horizontal timeline
+       ══════════════════════════════════════════════════ -->
+  <div class="history-overlay" id="historyOverlay">
+    <button class="history-close" id="historyClose">✕ Zamknij</button>
+
+    <div class="hist-top">
+      <div class="hist-eyebrow">ARCHIWUM</div>
+      <h2 class="hist-title">Historia Osiedla Rżąka</h2>
+      <p class="hist-subtitle">Prawie cztery dekady życia — od placu budowy do nowoczesnego osiedla</p>
+    </div>
+
+    <!-- Horizontal scroll track -->
+    <div class="hist-track" id="histTrack">
+
+      <div class="hist-card">
+        <div class="hist-year">1987</div>
+        <div class="hist-img-wrap"><img src="./history/h1987.jpg" alt="Budowa 1987" loading="lazy"></div>
+        <div class="hist-card-body">
+          <div class="hist-tag">Początek budowy</div>
+          <h3>Pierwsze żurawie</h3>
+          <p>Ruszyła budowa osiedla według projektu architektonicznego G. Bodzenty i Z. Nesterskiego. Wielkie płyty prefabrykowane montowano w błocie Podgórza.</p>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <div class="hist-year">1994</div>
+        <div class="hist-img-wrap"><img src="./history/h1994.jpg" alt="Ukończenie 1994" loading="lazy"></div>
+        <div class="hist-card-body">
+          <div class="hist-tag">Ukończenie</div>
+          <h3>Pierwsi mieszkańcy</h3>
+          <p>Osiedle oficjalnie ukończone. Pierwsze rodziny wprowadzają się z Maluchami i Polonezami. Młode drzewka przed blokami zaledwie po kolana.</p>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <div class="hist-year">2000</div>
+        <div class="hist-img-wrap"><img src="./history/h2000.jpg" alt="Lata 2000" loading="lazy"></div>
+        <div class="hist-card-body">
+          <div class="hist-tag">Życie na osiedlu</div>
+          <h3>Podwórko rośnie</h3>
+          <p>Drzewa osiągają pierwsze metry, dzieci grają w piłkę między blokami. Osiedle nabiera własnego charakteru i tętni codziennym życiem.</p>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <div class="hist-year">2010</div>
+        <div class="hist-img-wrap"><img src="./history/h2010.jpg" alt="Remont 2010" loading="lazy"></div>
+        <div class="hist-card-body">
+          <div class="hist-tag">Modernizacja</div>
+          <h3>Kolorowe fasady</h3>
+          <p>Termomodernizacja bloków — charakterystyczne kolorowe pasy na elewacjach zastępują szarą wielką płytę. Nowe place zabaw i parkingi.</p>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <div class="hist-year">2025</div>
+        <div class="hist-img-wrap"><img src="./history/h2025.jpg" alt="Dziś 2025" loading="lazy"></div>
+        <div class="hist-card-body">
+          <div class="hist-tag">Dziś</div>
+          <h3>Dojrzałe osiedle</h3>
+          <p>Drzewa dają cień, park tętni życiem. Nowy Szpital Uniwersytecki sąsiaduje z osiedlem. Rżąka — dom tysiąca krakowskich rodzin.</p>
+        </div>
+      </div>
+
+    </div><!-- /hist-track -->
+
+    <!-- Dot navigation -->
+    <div class="hist-dots" id="histDots">
+      <button class="hdot active" data-i="0">1987</button>
+      <button class="hdot" data-i="1">1994</button>
+      <button class="hdot" data-i="2">2000</button>
+      <button class="hdot" data-i="3">2010</button>
+      <button class="hdot" data-i="4">2025</button>
+    </div>
+  </div>
+
+  <script src="./app.js?v=20260410"></script>
+  <script>
+  // Eksport budynków — inline żeby ominąć cache app.js
+  document.getElementById('btnExport').addEventListener('click', function() {
+    try {
+      var data = JSON.stringify(areas);
+      var ta = document.createElement('textarea');
+      ta.value = data;
+      ta.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);width:80vw;height:60vh;z-index:99999;background:#0d1117;color:#4ade80;border:2px solid #4ade80;border-radius:12px;padding:16px;font-family:monospace;font-size:11px;resize:none';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch(e){}
+      var close = document.createElement('button');
+      close.textContent = '✕ Zamknij (dane skopiowane)';
+      close.style.cssText = 'position:fixed;top:calc(10% - 40px);left:50%;transform:translateX(-50%);z-index:99999;background:#4ade80;color:#000;border:none;padding:8px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px';
+      close.onclick = function() { ta.remove(); close.remove(); };
+      document.body.appendChild(close);
+    } catch(e) { alert('B\u0142\u0105d: ' + e.message); }
+  });
+  </script>
+</body>
+</html>

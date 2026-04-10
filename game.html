@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obrona Rżąki — Tower Defense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --color-bg:#0a0a12;
+  --color-surface:rgba(10,10,18,0.85);
+  --color-border:rgba(0,255,200,0.15);
+  --color-text:#e0e8f0;
+  --color-text-muted:#6a7a8a;
+  --color-cyan:#00ffc8;
+  --color-blue:#4488ff;
+  --color-red:#ff4466;
+  --color-purple:#aa44ff;
+  --color-green:#44ff88;
+  --color-orange:#ffaa22;
+  --color-magenta:#ff44cc;
+  --panel-blur:16px;
+  --panel-radius:8px;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--color-bg);font-family:var(--font-body);color:var(--color-text)}
+#game-wrapper{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#000}
+canvas#gameCanvas{display:block;cursor:crosshair}
+/* Back link */
+#back-link{position:fixed;top:12px;left:12px;z-index:100;font-family:var(--font-body);font-size:13px;color:var(--color-cyan);text-decoration:none;background:var(--color-surface);backdrop-filter:blur(var(--panel-blur));border:1px solid var(--color-border);padding:6px 14px;border-radius:var(--panel-radius);transition:background .2s}
+#back-link:hover{background:rgba(0,255,200,0.1)}
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:8px 170px 8px 160px;background:linear-gradient(180deg,rgba(10,10,18,0.92) 0%,rgba(10,10,18,0) 100%);pointer-events:none;font-variant-numeric:tabular-nums lining-nums}
+#hud *{pointer-events:auto}
+.hud-section{display:flex;align-items:center;gap:16px}
+.hud-item{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--color-text)}
+.hud-item .label{color:var(--color-text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.hud-item .value{font-family:var(--font-display);font-size:15px}
+.hud-title{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:2px;color:var(--color-cyan);text-shadow:0 0 20px rgba(0,255,200,0.4)}
+/* Shop Panel */
+#shop{position:fixed;top:50%;right:12px;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--color-surface);backdrop-filter:blur(var(--panel-blur));border:1px solid var(--color-border);border-radius:var(--panel-radius);width:140px}
+#shop .shop-title{font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--color-cyan);text-align:center;letter-spacing:1px;text-transform:uppercase;padding-bottom:4px;border-bottom:1px solid var(--color-border)}
+.tower-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;cursor:pointer;transition:all .15s;font-family:var(--font-body);color:var(--color-text)}
+.tower-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
+.tower-btn.selected{border-color:var(--color-cyan);background:rgba(0,255,200,0.08);box-shadow:0 0 12px rgba(0,255,200,0.15)}
+.tower-btn.disabled{opacity:0.35;cursor:not-allowed}
+.tower-btn .t-icon{width:28px;height:28px;border-radius:4px}
+.tower-btn .t-name{font-size:11px;font-weight:600}
+.tower-btn .t-cost{font-size:10px;color:var(--color-orange)}
+/* Speed / Wave buttons */
+#controls{position:fixed;bottom:12px;right:12px;z-index:50;display:flex;gap:8px}
+.ctrl-btn{font-family:var(--font-body);font-size:12px;font-weight:600;padding:8px 14px;background:var(--color-surface);backdrop-filter:blur(var(--panel-blur));border:1px solid var(--color-border);border-radius:var(--panel-radius);color:var(--color-text);cursor:pointer;transition:all .15s}
+.ctrl-btn:hover{background:rgba(0,255,200,0.1);border-color:var(--color-cyan)}
+.ctrl-btn.active{background:rgba(0,255,200,0.15);border-color:var(--color-cyan);color:var(--color-cyan)}
+/* Tower info popup */
+#tower-info{position:fixed;z-index:60;display:none;padding:10px 14px;background:var(--color-surface);backdrop-filter:blur(var(--panel-blur));border:1px solid var(--color-border);border-radius:var(--panel-radius);font-size:12px;min-width:130px}
+#tower-info .ti-name{font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:4px}
+#tower-info .ti-stat{color:var(--color-text-muted);margin-bottom:2px}
+#tower-info .ti-sell{margin-top:6px;padding:5px 10px;background:rgba(255,68,102,0.15);border:1px solid rgba(255,68,102,0.3);border-radius:4px;color:var(--color-red);cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:600}
+#tower-info .ti-sell:hover{background:rgba(255,68,102,0.25)}
+/* Overlays */
+.overlay{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,5,12,0.88);backdrop-filter:blur(8px)}
+.overlay h1{font-family:var(--font-display);font-size:clamp(2rem,6vw,4rem);font-weight:700;color:var(--color-cyan);text-shadow:0 0 40px rgba(0,255,200,0.5);letter-spacing:4px;margin-bottom:8px}
+.overlay h2{font-family:var(--font-display);font-size:clamp(1rem,3vw,1.6rem);color:var(--color-text-muted);font-weight:500;margin-bottom:24px}
+.overlay .instructions{font-size:13px;color:var(--color-text-muted);max-width:400px;text-align:center;line-height:1.6;margin-bottom:32px}
+.overlay .big-btn{font-family:var(--font-display);font-size:18px;font-weight:700;padding:14px 40px;background:linear-gradient(135deg,rgba(0,255,200,0.2),rgba(0,255,200,0.05));border:2px solid var(--color-cyan);border-radius:8px;color:var(--color-cyan);cursor:pointer;letter-spacing:2px;transition:all .2s;text-transform:uppercase}
+.overlay .big-btn:hover{background:rgba(0,255,200,0.25);box-shadow:0 0 30px rgba(0,255,200,0.3)}
+.overlay .score-display{font-family:var(--font-display);font-size:clamp(1.2rem,4vw,2.2rem);color:var(--color-orange);margin-bottom:20px}
+/* Wave announcement */
+#wave-announce{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:80;font-family:var(--font-display);font-size:clamp(1.2rem,4vw,2.2rem);font-weight:700;color:var(--color-cyan);text-shadow:0 0 30px rgba(0,255,200,0.6);opacity:0;pointer-events:none;transition:opacity .4s}
+#wave-announce.show{opacity:1}
+/* Sound toggle */
+#sound-toggle{position:fixed;top:12px;right:12px;z-index:100;font-size:18px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text)}
+#sound-toggle:hover{background:rgba(0,255,200,0.1)}
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<a id="back-link" href="./index.html">← Wróć do mapy</a>
+
+<div id="hud" style="display:none">
+  <div class="hud-section">
+    <div class="hud-item"><span class="label">Fala</span><span class="value" id="hud-wave">1/10</span></div>
+    <div class="hud-item"><span class="label">Wrogowie</span><span class="value" id="hud-enemies">0</span></div>
+  </div>
+  <div class="hud-title">OBRONA RŻĄKI</div>
+  <div class="hud-section">
+    <div class="hud-item"><span class="label">Monety</span><span class="value" id="hud-coins" style="color:var(--color-orange)">500</span></div>
+    <div class="hud-item"><span class="label">Życia</span><span class="value" id="hud-lives" style="color:var(--color-red)">20</span></div>
+    <div class="hud-item"><span class="label">Wynik</span><span class="value" id="hud-score" style="color:var(--color-cyan)">0</span></div>
+  </div>
+</div>
+
+<div id="shop" style="display:none">
+  <div class="shop-title">Wieże</div>
+  <div class="tower-btn" data-tower="blaster">
+    <canvas class="t-icon" width="28" height="28"></canvas>
+    <span class="t-name">Blaster</span>
+    <span class="t-cost">100 🪙</span>
+  </div>
+  <div class="tower-btn" data-tower="sniper">
+    <canvas class="t-icon" width="28" height="28"></canvas>
+    <span class="t-name">Snajper</span>
+    <span class="t-cost">200 🪙</span>
+  </div>
+  <div class="tower-btn" data-tower="freeze">
+    <canvas class="t-icon" width="28" height="28"></canvas>
+    <span class="t-name">Mróz</span>
+    <span class="t-cost">150 🪙</span>
+  </div>
+  <div class="tower-btn" data-tower="tesla">
+    <canvas class="t-icon" width="28" height="28"></canvas>
+    <span class="t-name">Tesla</span>
+    <span class="t-cost">300 🪙</span>
+  </div>
+</div>
+
+<div id="tower-info">
+  <div class="ti-name"></div>
+  <div class="ti-stat ti-damage"></div>
+  <div class="ti-stat ti-range"></div>
+  <div class="ti-stat ti-rate"></div>
+  <button class="ti-sell">Sprzedaj</button>
+</div>
+
+<div id="controls" style="display:none">
+  <button class="ctrl-btn" id="btn-speed">⏩ 1x</button>
+  <button class="ctrl-btn" id="btn-next-wave">Następna fala [Spacja]</button>
+</div>
+
+<div id="wave-announce"></div>
+
+<button id="sound-toggle" title="Dźwięk">🔊</button>
+
+<!-- Title Screen -->
+<div class="overlay" id="screen-title">
+  <h1>OBRONA RŻĄKI</h1>
+  <h2>Tower Defense</h2>
+  <div class="instructions">
+    Broń osiedla Rżąka przed falami najeźdźców!<br>
+    Stawiaj wieże na budynkach, by zatrzymać wrogów poruszających się ulicami.<br><br>
+    🖱️ Kliknij wieżę w panelu, potem na mapę, by ją postawić<br>
+    🖱️ Kliknij istniejącą wieżę, by zobaczyć statystyki lub sprzedać<br>
+    ⌨️ Spacja — przyśpiesz nadejście następnej fali
+  </div>
+  <button class="big-btn" id="btn-start">ROZPOCZNIJ</button>
+</div>
+
+<!-- Game Over Screen -->
+<div class="overlay" id="screen-gameover" style="display:none">
+  <h1>KONIEC GRY</h1>
+  <h2>Rżąka padła...</h2>
+  <div class="score-display" id="go-score">Wynik: 0</div>
+  <div class="score-display" style="font-size:1rem;color:var(--color-text-muted)" id="go-wave">Dotarłeś do fali: 1</div>
+  <button class="big-btn" id="btn-restart">ZAGRAJ PONOWNIE</button>
+</div>
+
+<!-- Victory Screen -->
+<div class="overlay" id="screen-victory" style="display:none">
+  <h1>🏆 ZWYCIĘSTWO!</h1>
+  <h2>Rżąka jest bezpieczna!</h2>
+  <div class="score-display" id="v-score">Wynik: 0</div>
+  <button class="big-btn" id="btn-restart2">ZAGRAJ PONOWNIE</button>
+</div>
+
+<script>
+// ============================================================
+// OBRONA RŻĄKI — Tower Defense Game
+// ============================================================
+
+// --- CONSTANTS ---
+const GAME_W = 1935, GAME_H = 1080;
+const GRID_SIZE = 45; // snap grid
+const TOTAL_WAVES = 10;
+
+// Enemy path waypoints (pixel coords on 1935x1080)
+const PATH = [
+  {x:50, y:80},
+  {x:200, y:150},
+  {x:380, y:220},
+  {x:520, y:340},
+  {x:650, y:420},
+  {x:800, y:460},
+  {x:950, y:400},
+  {x:1100, y:450},
+  {x:1250, y:540},
+  {x:1400, y:620},
+  {x:1550, y:700},
+  {x:1700, y:800},
+  {x:1850, y:920},
+  {x:1900, y:1000}
+];
+
+// Precompute path distances for smooth interpolation
+let pathSegments = [];
+let pathTotalLength = 0;
+function computePathData() {
+  pathSegments = [];
+  pathTotalLength = 0;
+  for (let i = 1; i < PATH.length; i++) {
+    const dx = PATH[i].x - PATH[i-1].x;
+    const dy = PATH[i].y - PATH[i-1].y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    pathSegments.push({ start: PATH[i-1], end: PATH[i], length: len, cumLength: pathTotalLength });
+    pathTotalLength += len;
+  }
+}
+computePathData();
+
+function getPathPosition(t) {
+  // t in [0,1] → position along path
+  const dist = t * pathTotalLength;
+  for (let i = 0; i < pathSegments.length; i++) {
+    const seg = pathSegments[i];
+    if (dist <= seg.cumLength + seg.length || i === pathSegments.length - 1) {
+      const localT = Math.max(0, Math.min(1, (dist - seg.cumLength) / seg.length));
+      return {
+        x: seg.start.x + (seg.end.x - seg.start.x) * localT,
+        y: seg.start.y + (seg.end.y - seg.start.y) * localT
+      };
+    }
+  }
+  return PATH[PATH.length - 1];
+}
+
+// Tower definitions
+const TOWER_DEFS = {
+  blaster: { name: 'Blaster', cost: 100, range: 150, damage: 15, fireRate: 0.8, color: '#4488ff', projColor: '#4488ff', projSpeed: 600, special: null },
+  sniper:  { name: 'Snajper', cost: 200, range: 280, damage: 50, fireRate: 2.0, color: '#ff4466', projColor: '#ff4466', projSpeed: 900, special: null },
+  freeze:  { name: 'Mróz',   cost: 150, range: 160, damage: 8,  fireRate: 0.6, color: '#00ffc8', projColor: '#00ffc8', projSpeed: 500, special: 'freeze' },
+  tesla:   { name: 'Tesla',  cost: 300, range: 120, damage: 25, fireRate: 1.2, color: '#aa44ff', projColor: '#aa44ff', projSpeed: 0,   special: 'chain' }
+};
+
+// Enemy definitions
+const ENEMY_DEFS = {
+  zwiadowca:  { name: 'Zwiadowca',  hp: 60,  speed: 80, reward: 12, color: '#44ff88', radius: 10, freezeResist: false },
+  ciezarowka: { name: 'Ciężarówka', hp: 250, speed: 35, reward: 25, color: '#ffaa22', radius: 14, freezeResist: false },
+  dron:       { name: 'Dron',       hp: 120, speed: 55, reward: 18, color: '#ff44cc', radius: 12, freezeResist: true }
+};
+
+// Wave configurations
+const WAVES = [];
+function generateWaves() {
+  for (let w = 1; w <= TOTAL_WAVES; w++) {
+    const enemies = [];
+    const hpMult = 1 + (w - 1) * 0.25;
+    const spdMult = 1 + (w - 1) * 0.05;
+    // Zwiadowcy
+    const nScouts = 3 + w * 2;
+    for (let i = 0; i < nScouts; i++) enemies.push({ type: 'zwiadowca', delay: i * 0.6, hpMult, spdMult });
+    // Ciężarówki (from wave 2)
+    if (w >= 2) {
+      const nTrucks = Math.floor(w * 0.8);
+      for (let i = 0; i < nTrucks; i++) enemies.push({ type: 'ciezarowka', delay: nScouts * 0.6 + i * 1.5, hpMult, spdMult });
+    }
+    // Drony (from wave 3)
+    if (w >= 3) {
+      const nDrones = Math.floor((w - 1) * 0.7);
+      for (let i = 0; i < nDrones; i++) enemies.push({ type: 'dron', delay: nScouts * 0.6 + 1 + i * 0.9, hpMult, spdMult });
+    }
+    WAVES.push(enemies);
+  }
+}
+generateWaves();
+
+// --- AUDIO ---
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playSound(type) {
+  if (!soundEnabled || !audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    switch(type) {
+      case 'shoot':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.start(now); osc.stop(now + 0.08);
+        break;
+      case 'hit':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+        break;
+      case 'kill':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.start(now); osc.stop(now + 0.25);
+        break;
+      case 'wave':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(660, now + 0.1);
+        osc.frequency.setValueAtTime(880, now + 0.2);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
+        break;
+      case 'place':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.setValueAtTime(800, now + 0.05);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now); osc.stop(now + 0.12);
+        break;
+      case 'sell':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+        break;
+      case 'freeze':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+        break;
+      case 'tesla':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.setValueAtTime(2000, now + 0.02);
+        osc.frequency.setValueAtTime(100, now + 0.06);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now); osc.stop(now + 0.12);
+        break;
+      case 'lose':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.5);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc.start(now); osc.stop(now + 0.6);
+        break;
+    }
+  } catch(e) {}
+}
+
+// --- CANVAS SETUP ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = GAME_W;
+canvas.height = GAME_H;
+
+const bgImage = new Image();
+bgImage.crossOrigin = 'anonymous';
+bgImage.src = './aerial.jpg';
+let bgLoaded = false;
+bgImage.onload = () => { bgLoaded = true; };
+
+// Scale & mouse
+let scale = 1, offsetX = 0, offsetY = 0;
+function resize() {
+  const ww = window.innerWidth, wh = window.innerHeight;
+  scale = Math.min(ww / GAME_W, wh / GAME_H);
+  const cw = GAME_W * scale, ch = GAME_H * scale;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  offsetX = (ww - cw) / 2;
+  offsetY = (wh - ch) / 2;
+  canvas.style.marginLeft = offsetX + 'px';
+  canvas.style.marginTop = offsetY + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / scale,
+    y: (e.clientY - rect.top) / scale
+  };
+}
+
+function snapToGrid(v) {
+  return Math.floor(v / GRID_SIZE) * GRID_SIZE + GRID_SIZE / 2;
+}
+
+// --- GAME STATE ---
+let gameState = 'title'; // title | playing | wavepause | gameover | victory
+let coins = 500, lives = 20, score = 0, currentWave = 0;
+let towers = [], enemies = [], projectiles = [], particles = [];
+let chainLightnings = []; // visual chain effects
+let selectedTowerType = null;
+let selectedTower = null; // placed tower for info
+let speedMultiplier = 1;
+let waveTimer = 0;
+let waveEnemyQueue = [];
+let mouseGX = 0, mouseGY = 0; // game coords of mouse
+let waveBreakTime = 10;
+let waveBreakTimer = 0;
+let announceText = '';
+let announceTimer = 0;
+let allEnemiesSpawned = false;
+
+// Particle pool
+const MAX_PARTICLES = 500;
+class Particle {
+  constructor() { this.active = false; }
+  init(x, y, vx, vy, life, color, size) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.life = life; this.maxLife = life; this.color = color; this.size = size;
+    this.active = true;
+  }
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.life -= dt;
+    if (this.life <= 0) this.active = false;
+  }
+  draw(ctx) {
+    const a = this.life / this.maxLife;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * a, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+for (let i = 0; i < MAX_PARTICLES; i++) particles.push(new Particle());
+
+function emitParticles(x, y, count, color, spread, speed, life, size) {
+  let n = 0;
+  for (const p of particles) {
+    if (!p.active && n < count) {
+      const angle = Math.random() * Math.PI * 2;
+      const s = Math.random() * speed;
+      p.init(x, y, Math.cos(angle) * s, Math.sin(angle) * s,
+        life + Math.random() * life * 0.5, color, size + Math.random() * size * 0.5);
+      n++;
+    }
+  }
+}
+
+// --- PATH HELPERS ---
+function distToPath(px, py) {
+  let minDist = Infinity;
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const ax = PATH[i].x, ay = PATH[i].y;
+    const bx = PATH[i+1].x, by = PATH[i+1].y;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx*dx + dy*dy;
+    let t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / len2));
+    const cx = ax + t * dx, cy = ay + t * dy;
+    const d = Math.sqrt((px-cx)*(px-cx) + (py-cy)*(py-cy));
+    if (d < minDist) minDist = d;
+  }
+  return minDist;
+}
+
+function canPlaceTower(gx, gy) {
+  // Not too close to path
+  if (distToPath(gx, gy) < 40) return false;
+  // Not on another tower
+  for (const t of towers) {
+    if (Math.abs(t.x - gx) < GRID_SIZE && Math.abs(t.y - gy) < GRID_SIZE) return false;
+  }
+  // Within bounds (with some margin for shop panel)
+  if (gx < 20 || gx > GAME_W - 20 || gy < 20 || gy > GAME_H - 20) return false;
+  return true;
+}
+
+// --- TOWER CLASS ---
+class Tower {
+  constructor(type, x, y) {
+    const def = TOWER_DEFS[type];
+    this.type = type;
+    this.x = x; this.y = y;
+    this.range = def.range;
+    this.damage = def.damage;
+    this.fireRate = def.fireRate;
+    this.color = def.color;
+    this.projColor = def.projColor;
+    this.projSpeed = def.projSpeed;
+    this.special = def.special;
+    this.cooldown = 0;
+    this.target = null;
+    this.angle = 0;
+    this.kills = 0;
+  }
+
+  findTarget() {
+    let best = null, bestProgress = -1;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const dx = e.x - this.x, dy = e.y - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist <= this.range && e.pathT > bestProgress) {
+        best = e;
+        bestProgress = e.pathT;
+      }
+    }
+    return best;
+  }
+
+  update(dt) {
+    this.cooldown -= dt;
+    this.target = this.findTarget();
+    if (this.target) {
+      this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+      if (this.cooldown <= 0) {
+        this.fire();
+        this.cooldown = this.fireRate;
+      }
+    }
+  }
+
+  fire() {
+    if (!this.target) return;
+    if (this.special === 'chain') {
+      // Tesla: chain lightning
+      playSound('tesla');
+      const hit = [];
+      let current = this.target;
+      let dmg = this.damage;
+      for (let i = 0; i < 4 && current; i++) {
+        current.takeDamage(dmg, this);
+        hit.push({ x: current.x, y: current.y });
+        emitParticles(current.x, current.y, 3, this.projColor, 30, 80, 0.2, 3);
+        dmg *= 0.7;
+        // Find next closest enemy
+        let next = null, nextDist = 120;
+        for (const e of enemies) {
+          if (!e.alive || hit.some(h => Math.abs(h.x - e.x) < 5 && Math.abs(h.y - e.y) < 5)) continue;
+          const d = Math.sqrt((e.x - current.x)**2 + (e.y - current.y)**2);
+          if (d < nextDist) { next = e; nextDist = d; }
+        }
+        current = next;
+      }
+      // Store chain lightning visual
+      chainLightnings.push({ points: [{x: this.x, y: this.y}, ...hit], life: 0.15, maxLife: 0.15, color: this.projColor });
+    } else {
+      playSound('shoot');
+      projectiles.push(new Projectile(this.x, this.y, this.target, this.damage, this.projSpeed, this.projColor, this.special, this));
+    }
+  }
+
+  draw(ctx) {
+    const s = GRID_SIZE * 0.4;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // Base glow
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 1.5);
+    grad.addColorStop(0, this.color + '33');
+    grad.addColorStop(1, this.color + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tower body
+    if (this.type === 'tesla') {
+      // Hexagon
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 3 * i - Math.PI / 6;
+        ctx[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * s, Math.sin(a) * s);
+      }
+      ctx.closePath();
+      ctx.fillStyle = this.color + '44';
+      ctx.fill();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else {
+      // Square with rounded corners
+      const r = 3;
+      ctx.beginPath();
+      ctx.roundRect(-s, -s, s*2, s*2, r);
+      ctx.fillStyle = this.color + '44';
+      ctx.fill();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Turret barrel
+    ctx.rotate(this.angle);
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(s * 1.2, 0);
+    ctx.stroke();
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  drawRange(ctx) {
+    ctx.save();
+    ctx.strokeStyle = this.color + '44';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = this.color + '0a';
+    ctx.fill();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+}
+
+// --- PROJECTILE CLASS ---
+class Projectile {
+  constructor(x, y, target, damage, speed, color, special, tower) {
+    this.x = x; this.y = y;
+    this.target = target;
+    this.tx = target.x; this.ty = target.y;
+    this.damage = damage;
+    this.speed = speed;
+    this.color = color;
+    this.special = special;
+    this.tower = tower;
+    this.alive = true;
+    this.trail = [];
+  }
+
+  update(dt) {
+    if (!this.alive) return;
+    // Track target
+    if (this.target && this.target.alive) {
+      this.tx = this.target.x;
+      this.ty = this.target.y;
+    }
+    const dx = this.tx - this.x, dy = this.ty - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 8) {
+      this.alive = false;
+      if (this.target && this.target.alive) {
+        this.target.takeDamage(this.damage, this.tower);
+        if (this.special === 'freeze' && !this.target.freezeResist) {
+          this.target.slowTimer = 2;
+          this.target.slowFactor = 0.35;
+          playSound('freeze');
+        } else {
+          playSound('hit');
+        }
+        emitParticles(this.tx, this.ty, 4, this.color, 20, 60, 0.3, 3);
+      }
+      return;
+    }
+    const move = this.speed * dt;
+    this.x += (dx / dist) * move;
+    this.y += (dy / dist) * move;
+    // Trail
+    this.trail.push({ x: this.x, y: this.y, life: 0.15 });
+    if (this.trail.length > 8) this.trail.shift();
+    // Timeout
+    if (dist > 500) this.alive = false;
+  }
+
+  draw(ctx) {
+    if (!this.alive) return;
+    // Trail
+    for (let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      const a = (i + 1) / this.trail.length * 0.5;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Head
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+// --- ENEMY CLASS ---
+class Enemy {
+  constructor(type, hpMult, spdMult) {
+    const def = ENEMY_DEFS[type];
+    this.type = type;
+    this.hp = def.hp * hpMult;
+    this.maxHp = this.hp;
+    this.baseSpeed = def.speed * spdMult;
+    this.speed = this.baseSpeed;
+    this.reward = def.reward;
+    this.color = def.color;
+    this.radius = def.radius;
+    this.freezeResist = def.freezeResist;
+    this.pathT = 0; // 0 to 1
+    const pos = getPathPosition(0);
+    this.x = pos.x; this.y = pos.y;
+    this.alive = true;
+    this.slowTimer = 0;
+    this.slowFactor = 1;
+    this.trail = [];
+    this.trailTimer = 0;
+  }
+
+  takeDamage(amount, tower) {
+    this.hp -= amount;
+    if (this.hp <= 0 && this.alive) {
+      this.alive = false;
+      coins += this.reward;
+      score += this.reward * 2;
+      if (tower) tower.kills++;
+      emitParticles(this.x, this.y, 12, this.color, 40, 120, 0.5, 5);
+      playSound('kill');
+    }
+  }
+
+  update(dt) {
+    if (!this.alive) return;
+    // Slow effect
+    if (this.slowTimer > 0) {
+      this.slowTimer -= dt;
+      this.speed = this.baseSpeed * this.slowFactor;
+    } else {
+      this.speed = this.baseSpeed;
+    }
+    // Move along path
+    const moveAmount = (this.speed / pathTotalLength) * dt;
+    this.pathT += moveAmount;
+    if (this.pathT >= 1) {
+      this.alive = false;
+      lives--;
+      playSound('lose');
+      return;
+    }
+    const pos = getPathPosition(this.pathT);
+    this.x = pos.x;
+    this.y = pos.y;
+    // Trail
+    this.trailTimer += dt;
+    if (this.trailTimer > 0.05) {
+      this.trailTimer = 0;
+      this.trail.push({ x: this.x, y: this.y, life: 0.4 });
+    }
+    // Update trail
+    for (let i = this.trail.length - 1; i >= 0; i--) {
+      this.trail[i].life -= dt;
+      if (this.trail[i].life <= 0) this.trail.splice(i, 1);
+    }
+  }
+
+  draw(ctx) {
+    if (!this.alive) return;
+    // Trail
+    for (const t of this.trail) {
+      const a = t.life / 0.4 * 0.3;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, this.radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Glow
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Inner
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // Freeze indicator
+    if (this.slowTimer > 0) {
+      ctx.strokeStyle = '#00ffc8';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // HP bar
+    if (this.hp < this.maxHp) {
+      const bw = 24, bh = 3;
+      const bx = this.x - bw/2, by = this.y - this.radius - 8;
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx, by, bw, bh);
+      const pct = Math.max(0, this.hp / this.maxHp);
+      ctx.fillStyle = pct > 0.5 ? '#44ff88' : pct > 0.25 ? '#ffaa22' : '#ff4466';
+      ctx.fillRect(bx, by, bw * pct, bh);
+    }
+  }
+}
+
+// --- DRAW FUNCTIONS ---
+function drawPath(ctx) {
+  ctx.save();
+  // Glow border (wide, faint)
+  ctx.strokeStyle = 'rgba(0,255,200,0.08)';
+  ctx.lineWidth = 28;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(PATH[0].x, PATH[0].y);
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+  ctx.stroke();
+  // Solid subtle path fill
+  ctx.strokeStyle = 'rgba(0,255,200,0.12)';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.moveTo(PATH[0].x, PATH[0].y);
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+  ctx.stroke();
+  // Dashed center line
+  ctx.strokeStyle = 'rgba(0,255,200,0.35)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(PATH[0].x, PATH[0].y);
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Start marker (green pulsing)
+  ctx.fillStyle = '#44ff8844';
+  ctx.beginPath();
+  ctx.arc(PATH[0].x, PATH[0].y, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#44ff88';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = '600 11px "Inter", sans-serif';
+  ctx.fillStyle = '#44ff88';
+  ctx.textAlign = 'center';
+  ctx.fillText('START', PATH[0].x, PATH[0].y - 22);
+  // End marker (red)
+  ctx.fillStyle = '#ff446644';
+  ctx.beginPath();
+  ctx.arc(PATH[PATH.length-1].x, PATH[PATH.length-1].y, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ff4466';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#ff4466';
+  ctx.fillText('KONIEC', PATH[PATH.length-1].x, PATH[PATH.length-1].y - 22);
+  ctx.restore();
+}
+
+function drawChainLightnings(ctx) {
+  for (let i = chainLightnings.length - 1; i >= 0; i--) {
+    const cl = chainLightnings[i];
+    const a = cl.life / cl.maxLife;
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = cl.color;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = cl.color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    for (let j = 0; j < cl.points.length; j++) {
+      const p = cl.points[j];
+      if (j === 0) ctx.moveTo(p.x, p.y);
+      else {
+        // Jagged line for lightning effect
+        const prev = cl.points[j-1];
+        const mx = (prev.x + p.x) / 2 + (Math.random() - 0.5) * 20;
+        const my = (prev.y + p.y) / 2 + (Math.random() - 0.5) * 20;
+        ctx.quadraticCurveTo(mx, my, p.x, p.y);
+      }
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPlacementPreview(ctx) {
+  if (!selectedTowerType || gameState === 'title' || gameState === 'gameover' || gameState === 'victory') return;
+  const def = TOWER_DEFS[selectedTowerType];
+  const gx = snapToGrid(mouseGX);
+  const gy = snapToGrid(mouseGY);
+  const valid = canPlaceTower(gx, gy) && coins >= def.cost;
+
+  // Range circle
+  ctx.save();
+  ctx.strokeStyle = valid ? def.color + '44' : '#ff444444';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.arc(gx, gy, def.range, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = valid ? def.color + '0a' : '#ff44440a';
+  ctx.fill();
+  ctx.setLineDash([]);
+
+  // Tower preview
+  ctx.globalAlpha = 0.5;
+  const s = GRID_SIZE * 0.4;
+  ctx.translate(gx, gy);
+  ctx.strokeStyle = valid ? def.color : '#ff4444';
+  ctx.lineWidth = 2;
+  if (selectedTowerType === 'tesla') {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 3 * i - Math.PI / 6;
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * s, Math.sin(a) * s);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(-s, -s, s*2, s*2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// --- TOWER ICON DRAWING ---
+function drawTowerIcon(canvasEl, type) {
+  const c = canvasEl.getContext('2d');
+  const w = canvasEl.width, h = canvasEl.height;
+  c.clearRect(0, 0, w, h);
+  const def = TOWER_DEFS[type];
+  c.translate(w/2, h/2);
+
+  // Glow
+  const grad = c.createRadialGradient(0, 0, 0, 0, 0, 12);
+  grad.addColorStop(0, def.color + '44');
+  grad.addColorStop(1, def.color + '00');
+  c.fillStyle = grad;
+  c.beginPath();
+  c.arc(0, 0, 12, 0, Math.PI * 2);
+  c.fill();
+
+  const s = 8;
+  if (type === 'tesla') {
+    c.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 3 * i - Math.PI / 6;
+      c[i === 0 ? 'moveTo' : 'lineTo'](Math.cos(a) * s, Math.sin(a) * s);
+    }
+    c.closePath();
+  } else {
+    c.beginPath();
+    c.rect(-s, -s, s*2, s*2);
+  }
+  c.fillStyle = def.color + '44';
+  c.fill();
+  c.strokeStyle = def.color;
+  c.lineWidth = 1.5;
+  c.stroke();
+
+  // Barrel
+  c.strokeStyle = def.color;
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(s * 1.2, 0);
+  c.stroke();
+
+  c.beginPath();
+  c.arc(0, 0, 2, 0, Math.PI * 2);
+  c.fillStyle = def.color;
+  c.fill();
+}
+
+// --- HUD UPDATE ---
+function updateHUD() {
+  document.getElementById('hud-wave').textContent = currentWave + '/' + TOTAL_WAVES;
+  document.getElementById('hud-enemies').textContent = enemies.filter(e => e.alive).length;
+  document.getElementById('hud-coins').textContent = coins;
+  document.getElementById('hud-lives').textContent = lives;
+  document.getElementById('hud-score').textContent = score;
+
+  // Update tower button states
+  document.querySelectorAll('.tower-btn').forEach(btn => {
+    const type = btn.dataset.tower;
+    const def = TOWER_DEFS[type];
+    btn.classList.toggle('disabled', coins < def.cost);
+    btn.classList.toggle('selected', selectedTowerType === type);
+  });
+}
+
+// --- WAVE MANAGEMENT ---
+function startWave(waveNum) {
+  currentWave = waveNum;
+  const waveDef = WAVES[waveNum - 1];
+  waveEnemyQueue = waveDef.map(e => ({ ...e, spawned: false }));
+  waveTimer = 0;
+  allEnemiesSpawned = false;
+  showAnnouncement('FALA ' + waveNum + ' NADCHODZI!');
+  playSound('wave');
+}
+
+function showAnnouncement(text) {
+  announceText = text;
+  announceTimer = 2.5;
+  const el = document.getElementById('wave-announce');
+  el.textContent = text;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function checkWaveComplete() {
+  if (!allEnemiesSpawned) return false;
+  return enemies.every(e => !e.alive);
+}
+
+// --- GAME LOGIC UPDATE ---
+function update(dt) {
+  if (gameState !== 'playing' && gameState !== 'wavepause') return;
+
+  const sDt = dt * speedMultiplier;
+
+  if (gameState === 'wavepause') {
+    waveBreakTimer -= sDt;
+    if (waveBreakTimer <= 0) {
+      gameState = 'playing';
+      startWave(currentWave + 1);
+    }
+    return;
+  }
+
+  // Spawn enemies
+  waveTimer += sDt;
+  for (const eq of waveEnemyQueue) {
+    if (!eq.spawned && waveTimer >= eq.delay) {
+      eq.spawned = true;
+      enemies.push(new Enemy(eq.type, eq.hpMult, eq.spdMult));
+    }
+  }
+  if (waveEnemyQueue.every(e => e.spawned)) allEnemiesSpawned = true;
+
+  // Update enemies
+  for (const e of enemies) e.update(sDt);
+  enemies = enemies.filter(e => e.alive || e.hp > 0);
+
+  // Update towers
+  for (const t of towers) t.update(sDt);
+
+  // Update projectiles
+  for (const p of projectiles) p.update(sDt);
+  projectiles = projectiles.filter(p => p.alive);
+
+  // Update particles
+  for (const p of particles) if (p.active) p.update(sDt);
+
+  // Update chain lightnings
+  for (const cl of chainLightnings) cl.life -= sDt;
+  chainLightnings = chainLightnings.filter(cl => cl.life > 0);
+
+  // Update announcement
+  if (announceTimer > 0) announceTimer -= sDt;
+
+  // Check lives
+  if (lives <= 0) {
+    gameState = 'gameover';
+    document.getElementById('screen-gameover').style.display = '';
+    document.getElementById('go-score').textContent = 'Wynik: ' + score;
+    document.getElementById('go-wave').textContent = 'Dotarłeś do fali: ' + currentWave;
+    hideGameUI();
+    return;
+  }
+
+  // Check wave complete
+  if (allEnemiesSpawned && checkWaveComplete()) {
+    // Wave bonus
+    const bonus = 50 + currentWave * 20;
+    coins += bonus;
+    score += bonus;
+    if (currentWave >= TOTAL_WAVES) {
+      gameState = 'victory';
+      document.getElementById('screen-victory').style.display = '';
+      document.getElementById('v-score').textContent = 'Wynik: ' + score;
+      hideGameUI();
+    } else {
+      gameState = 'wavepause';
+      waveBreakTimer = waveBreakTime;
+      showAnnouncement('FALA ' + currentWave + ' UKOŃCZONA! +' + bonus + ' 🪙');
+    }
+  }
+}
+
+// --- RENDER ---
+function render() {
+  ctx.clearRect(0, 0, GAME_W, GAME_H);
+
+  // Background
+  if (bgLoaded) {
+    ctx.drawImage(bgImage, 0, 0, GAME_W, GAME_H);
+    // Dark overlay for better visibility
+    ctx.fillStyle = 'rgba(0,0,10,0.25)';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+  } else {
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+  }
+
+  if (gameState === 'title') return;
+
+  // Path
+  drawPath(ctx);
+
+  // Towers
+  for (const t of towers) t.draw(ctx);
+
+  // Selected tower range
+  if (selectedTower) {
+    selectedTower.drawRange(ctx);
+  }
+
+  // Enemies
+  for (const e of enemies) e.draw(ctx);
+
+  // Projectiles
+  for (const p of projectiles) p.draw(ctx);
+
+  // Chain lightnings
+  drawChainLightnings(ctx);
+
+  // Particles
+  for (const p of particles) if (p.active) p.draw(ctx);
+
+  // Placement preview
+  drawPlacementPreview(ctx);
+
+  // Wave pause countdown
+  if (gameState === 'wavepause') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,10,0.4)';
+    ctx.fillRect(GAME_W/2 - 200, GAME_H/2 - 40, 400, 80);
+    ctx.strokeStyle = 'rgba(0,255,200,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(GAME_W/2 - 200, GAME_H/2 - 40, 400, 80);
+    ctx.font = '600 20px "Space Grotesk", sans-serif';
+    ctx.fillStyle = '#e0e8f0';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Następna fala za: ' + Math.ceil(waveBreakTimer) + 's', GAME_W/2, GAME_H/2 - 5);
+    ctx.font = '400 13px "Inter", sans-serif';
+    ctx.fillStyle = '#6a7a8a';
+    ctx.fillText('Postaw wieże! [Spacja] by przyspieszyć', GAME_W/2, GAME_H/2 + 20);
+    ctx.restore();
+  }
+}
+
+// --- GAME LOOP ---
+let lastTime = 0;
+const TICK_RATE = 1000 / 60;
+let accumulator = 0;
+
+function gameLoop(timestamp) {
+  const deltaTime = Math.min(timestamp - lastTime, 100);
+  lastTime = timestamp;
+  accumulator += deltaTime;
+  while (accumulator >= TICK_RATE) {
+    update(TICK_RATE / 1000);
+    accumulator -= TICK_RATE;
+  }
+  render();
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+}
+
+// --- UI EVENT HANDLERS ---
+function showGameUI() {
+  document.getElementById('hud').style.display = '';
+  document.getElementById('shop').style.display = '';
+  document.getElementById('controls').style.display = '';
+}
+function hideGameUI() {
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('shop').style.display = 'none';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('tower-info').style.display = 'none';
+}
+
+function resetGame() {
+  coins = 500; lives = 20; score = 0; currentWave = 0;
+  towers = []; enemies = []; projectiles = [];
+  chainLightnings = [];
+  for (const p of particles) p.active = false;
+  selectedTowerType = null;
+  selectedTower = null;
+  speedMultiplier = 1;
+  waveTimer = 0;
+  waveBreakTimer = 0;
+  allEnemiesSpawned = false;
+  document.getElementById('btn-speed').textContent = '⏩ 1x';
+  document.getElementById('btn-speed').classList.remove('active');
+  document.getElementById('tower-info').style.display = 'none';
+}
+
+function startGame() {
+  initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  resetGame();
+  gameState = 'playing';
+  startWave(1);
+  document.getElementById('screen-title').style.display = 'none';
+  document.getElementById('screen-gameover').style.display = 'none';
+  document.getElementById('screen-victory').style.display = 'none';
+  showGameUI();
+}
+
+// Start button
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', startGame);
+document.getElementById('btn-restart2').addEventListener('click', startGame);
+
+// Tower shop buttons
+document.querySelectorAll('.tower-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.tower;
+    if (coins < TOWER_DEFS[type].cost) return;
+    selectedTowerType = selectedTowerType === type ? null : type;
+    selectedTower = null;
+    document.getElementById('tower-info').style.display = 'none';
+  });
+});
+
+// Canvas click - place tower or select existing
+canvas.addEventListener('click', (e) => {
+  if (gameState !== 'playing' && gameState !== 'wavepause') return;
+  const pos = canvasCoords(e);
+  const gx = snapToGrid(pos.x);
+  const gy = snapToGrid(pos.y);
+
+  // Check if clicking an existing tower
+  for (const t of towers) {
+    if (Math.abs(t.x - gx) < GRID_SIZE * 0.6 && Math.abs(t.y - gy) < GRID_SIZE * 0.6) {
+      selectedTower = t;
+      selectedTowerType = null;
+      showTowerInfo(t, e.clientX, e.clientY);
+      return;
+    }
+  }
+
+  // Place new tower
+  if (selectedTowerType) {
+    const def = TOWER_DEFS[selectedTowerType];
+    if (coins >= def.cost && canPlaceTower(gx, gy)) {
+      towers.push(new Tower(selectedTowerType, gx, gy));
+      coins -= def.cost;
+      playSound('place');
+      emitParticles(gx, gy, 8, def.color, 30, 80, 0.4, 4);
+    }
+  } else {
+    selectedTower = null;
+    document.getElementById('tower-info').style.display = 'none';
+  }
+});
+
+// Mouse move
+canvas.addEventListener('mousemove', (e) => {
+  const pos = canvasCoords(e);
+  mouseGX = pos.x;
+  mouseGY = pos.y;
+});
+
+// Tower info popup
+function showTowerInfo(tower, cx, cy) {
+  const el = document.getElementById('tower-info');
+  const def = TOWER_DEFS[tower.type];
+  el.querySelector('.ti-name').textContent = def.name;
+  el.querySelector('.ti-name').style.color = def.color;
+  el.querySelector('.ti-damage').textContent = 'Obrażenia: ' + def.damage;
+  el.querySelector('.ti-range').textContent = 'Zasięg: ' + def.range;
+  el.querySelector('.ti-rate').textContent = 'Zabójstwa: ' + tower.kills;
+  el.style.display = 'block';
+  // Position near click
+  let left = cx + 15, top = cy - 60;
+  if (left + 150 > window.innerWidth) left = cx - 160;
+  if (top < 10) top = 10;
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
+
+// Sell tower
+document.querySelector('.ti-sell').addEventListener('click', () => {
+  if (!selectedTower) return;
+  const def = TOWER_DEFS[selectedTower.type];
+  const refund = Math.floor(def.cost * 0.6);
+  coins += refund;
+  towers = towers.filter(t => t !== selectedTower);
+  playSound('sell');
+  emitParticles(selectedTower.x, selectedTower.y, 6, '#ffaa22', 30, 80, 0.3, 3);
+  selectedTower = null;
+  document.getElementById('tower-info').style.display = 'none';
+});
+
+// Speed button
+document.getElementById('btn-speed').addEventListener('click', () => {
+  if (speedMultiplier === 1) {
+    speedMultiplier = 2;
+    document.getElementById('btn-speed').textContent = '⏩ 2x';
+    document.getElementById('btn-speed').classList.add('active');
+  } else {
+    speedMultiplier = 1;
+    document.getElementById('btn-speed').textContent = '⏩ 1x';
+    document.getElementById('btn-speed').classList.remove('active');
+  }
+});
+
+// Next wave button / Space
+function triggerNextWave() {
+  if (gameState === 'wavepause') {
+    gameState = 'playing';
+    startWave(currentWave + 1);
+  }
+}
+document.getElementById('btn-next-wave').addEventListener('click', triggerNextWave);
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    triggerNextWave();
+  }
+  if (e.code === 'Escape') {
+    selectedTowerType = null;
+    selectedTower = null;
+    document.getElementById('tower-info').style.display = 'none';
+  }
+});
+
+// Sound toggle
+document.getElementById('sound-toggle').addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
+});
+
+// Draw tower icons
+document.querySelectorAll('.tower-btn').forEach(btn => {
+  const type = btn.dataset.tower;
+  const iconCanvas = btn.querySelector('.t-icon');
+  drawTowerIcon(iconCanvas, type);
+});
+
+// Start loop
+document.fonts.ready.then(() => {
+  requestAnimationFrame(gameLoop);
+});
+</script>
+</body>
+</html>

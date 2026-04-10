@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Panel Administratora — Rżąka</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080d;--surface:#0c1118;--surface2:#111820;
+      --border:#1c2530;--text:#b8ccde;--muted:#4d6070;
+      --accent:#4ade80;--blue:#3b82f6;--red:#ef4444;--yellow:#fbbf24;
+      --font:'Inter',sans-serif;--display:'Space Grotesk',sans-serif;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px}
+    button{cursor:pointer;font:inherit}
+    input,textarea,select{font:inherit}
+
+    /* ── LOGIN ────────────────────────────────────────────────── */
+    #loginScreen{
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      background:var(--bg);z-index:100;
+    }
+    .login-box{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;padding:40px 36px;width:360px;text-align:center;
+      box-shadow:0 24px 60px rgba(0,0,0,.6);
+    }
+    .login-logo{font-size:36px;margin-bottom:16px}
+    .login-box h1{font-family:var(--display);font-size:20px;color:#e6edf3;margin-bottom:8px}
+    .login-box p{font-size:12px;color:var(--muted);margin-bottom:24px}
+    .login-box input{
+      width:100%;background:#0d1117;border:1px solid var(--border);
+      border-radius:8px;color:var(--text);padding:10px 14px;
+      outline:none;margin-bottom:14px;font-size:14px;
+      transition:border-color .15s;
+    }
+    .login-box input:focus{border-color:var(--accent)}
+    .login-btn{
+      width:100%;padding:11px;border-radius:8px;border:none;
+      background:#238636;color:#fff;font-size:14px;font-weight:600;
+      transition:background .15s;
+    }
+    .login-btn:hover{background:#2ea043}
+    #loginErr{color:var(--red);font-size:11px;margin-top:8px;display:none}
+
+    /* ── ADMIN LAYOUT ─────────────────────────────────────────── */
+    #adminApp{display:none;height:100%;flex-direction:column}
+    #adminApp.show{display:flex}
+
+    .admin-header{
+      height:56px;display:flex;align-items:center;gap:12px;
+      padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .admin-logo{font-family:var(--display);font-size:16px;color:var(--accent);font-weight:700}
+    .admin-badge{
+      background:rgba(74,222,128,.12);color:var(--accent);
+      font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;
+      letter-spacing:.06em;
+    }
+    .admin-header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .back-btn{
+      padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+      background:transparent;color:var(--muted);font-size:11px;
+      text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+      transition:all .15s;
+    }
+    .back-btn:hover{border-color:var(--text);color:var(--text)}
+    .logout-btn{
+      padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+      background:transparent;color:var(--muted);font-size:11px;
+      transition:all .15s;
+    }
+    .logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+    .admin-body{display:flex;flex:1;overflow:hidden}
+
+    /* ── SIDEBAR ──────────────────────────────────────────────── */
+    .admin-nav{
+      width:220px;background:var(--surface);border-right:1px solid var(--border);
+      padding:16px 12px;display:flex;flex-direction:column;gap:4px;flex-shrink:0;
+    }
+    .nav-label{font-size:10px;font-weight:600;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.08em;margin:12px 8px 6px}
+    .nav-btn{
+      display:flex;align-items:center;gap:10px;
+      padding:8px 12px;border-radius:8px;border:none;
+      background:transparent;color:var(--muted);font-size:12px;font-weight:500;
+      text-align:left;transition:all .15s;cursor:pointer;width:100%;
+    }
+    .nav-btn:hover{background:var(--surface2);color:var(--text)}
+    .nav-btn.active{background:rgba(74,222,128,.1);color:var(--accent)}
+    .nav-btn svg{flex-shrink:0;opacity:.7}
+
+    /* ── CONTENT ──────────────────────────────────────────────── */
+    .admin-content{flex:1;overflow-y:auto;padding:24px}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* ── PAGE TITLE ───────────────────────────────────────────── */
+    .page-title{
+      font-family:var(--display);font-size:20px;color:#e6edf3;
+      margin-bottom:20px;display:flex;align-items:center;gap:10px;
+    }
+
+    /* ── STATS GRID ───────────────────────────────────────────── */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+    .stat-card{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:20px;
+    }
+    .stat-card-val{
+      font-family:var(--display);font-size:28px;font-weight:700;
+      color:#e6edf3;line-height:1;margin-bottom:6px;
+    }
+    .stat-card-lbl{font-size:11px;color:var(--muted)}
+    .stat-card.green .stat-card-val{color:var(--accent)}
+    .stat-card.blue .stat-card-val{color:var(--blue)}
+    .stat-card.yellow .stat-card-val{color:var(--yellow)}
+
+    /* ── TABLE ────────────────────────────────────────────────── */
+    .data-table{width:100%;border-collapse:collapse;font-size:12px}
+    .data-table th{
+      text-align:left;padding:10px 14px;font-size:10px;
+      color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+      border-bottom:1px solid var(--border);font-weight:600;
+    }
+    .data-table td{
+      padding:10px 14px;border-bottom:1px solid var(--border);
+      color:var(--text);
+    }
+    .data-table tr:hover td{background:var(--surface2)}
+    .data-table tr:last-child td{border-bottom:none}
+    .table-wrap{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;overflow:hidden;margin-bottom:20px;
+    }
+
+    /* ── BUTTONS ──────────────────────────────────────────────── */
+    .btn{
+      padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;
+      cursor:pointer;transition:all .15s;border:none;
+    }
+    .btn-green{background:#238636;color:#fff}
+    .btn-green:hover{background:#2ea043}
+    .btn-red{background:rgba(239,68,68,.12);border:1px solid var(--red);color:var(--red)}
+    .btn-red:hover{background:rgba(239,68,68,.2)}
+    .btn-gray{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
+    .btn-gray:hover{border-color:var(--text)}
+    .btn-sm{padding:4px 10px;font-size:11px}
+
+    /* ── FORM ─────────────────────────────────────────────────── */
+    .form-row{margin-bottom:14px}
+    .form-row label{display:block;font-size:11px;font-weight:600;
+      color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+    .form-row input,.form-row textarea,.form-row select{
+      width:100%;background:#0d1117;border:1px solid var(--border);
+      border-radius:8px;color:var(--text);padding:9px 12px;
+      outline:none;transition:border-color .15s;font-size:13px;
+    }
+    .form-row input:focus,.form-row textarea:focus{border-color:var(--accent)}
+    .form-row textarea{resize:vertical;min-height:90px}
+
+    /* ── SECTION ──────────────────────────────────────────────── */
+    .section{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:20px;margin-bottom:20px;
+    }
+    .section-title{
+      font-size:13px;font-weight:700;color:#e6edf3;
+      margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:8px;
+    }
+
+    /* ── BADGES ───────────────────────────────────────────────── */
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+    .badge-green{background:rgba(74,222,128,.12);color:var(--accent)}
+    .badge-blue{background:rgba(59,130,246,.12);color:var(--blue)}
+    .badge-red{background:rgba(239,68,68,.12);color:var(--red)}
+    .badge-yellow{background:rgba(251,191,36,.12);color:var(--yellow)}
+
+    /* ── ALERT ────────────────────────────────────────────────── */
+    .alert{
+      padding:12px 16px;border-radius:8px;font-size:12px;margin-bottom:16px;
+      display:none;
+    }
+    .alert.show{display:block}
+    .alert-green{background:rgba(74,222,128,.08);border:1px solid var(--accent);color:var(--accent)}
+
+    @media(max-width:768px){
+      .admin-nav{display:none}.stats-grid{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <h1>Panel Administratora</h1>
+    <p>Osiedle Rżąka · Kraków</p>
+    <input type="password" id="pwInput" placeholder="Hasło administratora..." autocomplete="current-password">
+    <button class="login-btn" id="loginBtn">Zaloguj się</button>
+    <div id="loginErr">❌ Nieprawidłowe hasło</div>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div id="adminApp">
+
+  <!-- Header -->
+  <header class="admin-header">
+    <div class="admin-logo">⚙ Rżąka Admin</div>
+    <span class="admin-badge">ADMINISTRATOR</span>
+    <div class="admin-header-right">
+      <a href="index.html" class="back-btn">← Wróć do mapy</a>
+      <button class="logout-btn" id="logoutBtn">Wyloguj</button>
+    </div>
+  </header>
+
+  <div class="admin-body">
+
+    <!-- Nav -->
+    <nav class="admin-nav">
+      <div class="nav-label">Główne</div>
+      <button class="nav-btn active" data-tab="dashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+
+      <div class="nav-label">Mapa</div>
+      <button class="nav-btn" data-tab="poi">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+        Markery POI
+      </button>
+
+      <div class="nav-label">Społeczność</div>
+      <button class="nav-btn" data-tab="messages">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Wiadomości
+      </button>
+      <button class="nav-btn" data-tab="announce">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        Ogłoszenia
+      </button>
+
+      <div class="nav-label">System</div>
+      <button class="nav-btn" data-tab="settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M12 2a10 10 0 0 0-7.07 17.07"/></svg>
+        Ustawienia
+      </button>
+    </nav>
+
+    <!-- Content -->
+    <main class="admin-content">
+
+      <!-- DASHBOARD -->
+      <div class="tab-panel active" id="tab-dashboard">
+        <div class="page-title">📊 Dashboard</div>
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="stat-card-val" id="statPins">—</div>
+            <div class="stat-card-lbl">Pinezki mieszkańców</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-card-val" id="statAreas">—</div>
+            <div class="stat-card-lbl">Zaznaczone budynki</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-card-val" id="statMessages">—</div>
+            <div class="stat-card-lbl">Wiadomości w sesji</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-val" id="statAnnounce">0</div>
+            <div class="stat-card-lbl">Ogłoszenia aktywne</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🕐 Ostatnia aktywność</div>
+          <div id="recentActivity" style="color:var(--muted);font-size:12px">Brak danych w tej sesji.</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">ℹ️ Informacje o stronie</div>
+          <table class="data-table">
+            <tr><td>Wersja</td><td>1.0.0</td></tr>
+            <tr><td>Technologia</td><td>Leaflet.js + GunDB</td></tr>
+            <tr><td>Hosting</td><td>Perplexity Computer (S3)</td></tr>
+            <tr><td>Domyślne hasło admina</td><td><code>rzaka-admin-2026</code></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- POI MARKERY -->
+      <div class="tab-panel" id="tab-poi">
+        <div class="page-title">📍 Zarządzanie markerami POI</div>
+
+        <div class="alert alert-green" id="poiAlert">✓ Zmiany zapisane pomyślnie.</div>
+
+        <div class="section">
+          <div class="section-title">Aktualne markery</div>
+          <div class="table-wrap">
+            <table class="data-table" id="poiTable">
+              <thead><tr><th>Ikona</th><th>Nazwa</th><th>Kategoria</th><th>Opis</th><th>Akcje</th></tr></thead>
+              <tbody id="poiTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">➕ Dodaj nowy marker</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-row">
+              <label>Ikona (emoji)</label>
+              <input type="text" id="newPoiIcon" placeholder="🏪" maxlength="4">
+            </div>
+            <div class="form-row">
+              <label>Kolor</label>
+              <input type="color" id="newPoiColor" value="#3b82f6" style="height:40px;cursor:pointer">
+            </div>
+            <div class="form-row" style="grid-column:1/-1">
+              <label>Nazwa</label>
+              <input type="text" id="newPoiName" placeholder="np. Sklep Biedronka">
+            </div>
+            <div class="form-row" style="grid-column:1/-1">
+              <label>Opis</label>
+              <input type="text" id="newPoiDesc" placeholder="Krótki opis miejsca">
+            </div>
+          </div>
+          <p style="color:var(--muted);font-size:11px;margin-bottom:12px">
+            Po dodaniu — odśwież mapę i kliknij w środek wybranego miejsca aby ustawić lokalizację.
+          </p>
+          <button class="btn btn-green" id="addPoiBtn">+ Dodaj marker</button>
+        </div>
+      </div>
+
+      <!-- WIADOMOŚCI -->
+      <div class="tab-panel" id="tab-messages">
+        <div class="page-title">💬 Moderacja wiadomości</div>
+        <div class="section">
+          <div class="section-title">Historia czatu (bieżąca sesja GunDB)</div>
+          <p style="color:var(--muted);font-size:12px;margin-bottom:16px">
+            Wiadomości synchronizują się w czasie rzeczywistym przez GunDB.
+          </p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Użytkownik</th><th>Budynek</th><th>Wiadomość</th><th>Czas</th><th>Akcja</th></tr></thead>
+              <tbody id="msgTbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Brak wiadomości w tej sesji</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">⚙️ Ustawienia czatu</div>
+          <div class="form-row">
+            <label>Czas widoczności dymka (minuty)</label>
+            <input type="number" id="chatTimeout" value="10" min="1" max="60" style="width:120px">
+          </div>
+          <div class="form-row">
+            <label>Maks. długość wiadomości (znaki)</label>
+            <input type="number" id="chatMaxLen" value="160" min="50" max="500" style="width:120px">
+          </div>
+          <button class="btn btn-green" id="saveChatSettings">Zapisz ustawienia</button>
+        </div>
+      </div>
+
+      <!-- OGŁOSZENIA -->
+      <div class="tab-panel" id="tab-announce">
+        <div class="page-title">📢 Ogłoszenia</div>
+
+        <div class="alert alert-green" id="announceAlert">✓ Ogłoszenie opublikowane.</div>
+
+        <div class="section">
+          <div class="section-title">➕ Nowe ogłoszenie</div>
+          <div class="form-row">
+            <label>Tytuł</label>
+            <input type="text" id="annTitle" placeholder="np. Zebranie Wspólnoty — 15 maja">
+          </div>
+          <div class="form-row">
+            <label>Treść</label>
+            <textarea id="annBody" placeholder="Szczegóły ogłoszenia..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-row">
+              <label>Kategoria</label>
+              <select id="annCat">
+                <option>📋 Informacja</option>
+                <option>⚠️ Ważne</option>
+                <option>🔧 Konserwacja</option>
+                <option>🎉 Wydarzenie</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Ważne do</label>
+              <input type="date" id="annDate">
+            </div>
+          </div>
+          <button class="btn btn-green" id="publishAnn">Opublikuj ogłoszenie</button>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Aktywne ogłoszenia</div>
+          <div id="annList" style="color:var(--muted);font-size:12px">Brak aktywnych ogłoszeń.</div>
+        </div>
+      </div>
+
+      <!-- USTAWIENIA -->
+      <div class="tab-panel" id="tab-settings">
+        <div class="page-title">⚙️ Ustawienia systemu</div>
+        <div class="alert alert-green" id="settingsAlert">✓ Ustawienia zapisane.</div>
+
+        <div class="section">
+          <div class="section-title">🔐 Bezpieczeństwo</div>
+          <div class="form-row">
+            <label>Zmień hasło administratora</label>
+            <input type="password" id="newPw1" placeholder="Nowe hasło">
+          </div>
+          <div class="form-row">
+            <input type="password" id="newPw2" placeholder="Powtórz nowe hasło">
+          </div>
+          <button class="btn btn-green" id="changePwBtn">Zmień hasło</button>
+          <p style="color:var(--muted);font-size:11px;margin-top:8px">Hasło jest przechowywane lokalnie w przeglądarce.</p>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🗺️ Mapa</div>
+          <div class="form-row">
+            <label>Tytuł strony</label>
+            <input type="text" id="siteTitle" value="Osiedle Rżąka — Mapa">
+          </div>
+          <div class="form-row">
+            <label>Podtytuł (lokalizacja)</label>
+            <input type="text" id="siteSub" value="Kraków · Dzielnica XII">
+          </div>
+          <button class="btn btn-green" id="saveSiteSettings">Zapisz</button>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🗑️ Dane</div>
+          <p style="color:var(--muted);font-size:12px;margin-bottom:14px">Usuń wszystkie pinezki i zaznaczone budynki z przeglądarki.</p>
+          <button class="btn btn-red" id="clearPinsBtn">Wyczyść pinezki i obszary</button>
+          <button class="btn" id="resetAreasBtn" style="margin-top:10px;background:rgba(59,130,246,.15);border:1px solid #3b82f6;color:#93c5fd">🏢 Resetuj budynki do domyślnych</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ── HASH ──────────────────────────────────────────────────────
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+const HASH = '1645957d3b8903cba1a534bf8762900387172d9c43c7c28c57f8b5e7b44fddbd';
+
+// ── LOGIN ──────────────────────────────────────────────────────
+const ls = window.localStorage;
+let isLogged = ls?.getItem('rzaka-admin-session') === 'ok';
+
+if (isLogged) showAdmin();
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function doLogin() {
+  const pw = document.getElementById('pwInput').value;
+  const customHash = ls?.getItem('rzaka-admin-hash') || HASH;
+  const h = await sha256(pw);
+  if (h === customHash) {
+    ls?.setItem('rzaka-admin-session', 'ok');
+    showAdmin();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+
+function showAdmin() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminApp').classList.add('show');
+  loadDashboard();
+  loadPOI();
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  ls?.removeItem('rzaka-admin-session');
+  location.reload();
+});
+
+// ── TABS ───────────────────────────────────────────────────────
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── DASHBOARD ──────────────────────────────────────────────────
+function loadDashboard() {
+  let pins = 0, areas = 0;
+  try { pins  = JSON.parse(ls?.getItem('rzaka-photo-pins')||'[]').length; } catch(e){}
+  try { areas = JSON.parse(ls?.getItem('rzaka-areas')||'[]').length; } catch(e){}
+  document.getElementById('statPins').textContent     = pins;
+  document.getElementById('statAreas').textContent    = areas;
+  document.getElementById('statMessages').textContent = '—';
+}
+
+// ── POI ────────────────────────────────────────────────────────
+const DEFAULT_POI = [
+  {name:'Park Rżąka (staw)',icon:'🌳',color:'#22c55e',desc:'Zielony park 3,49 ha z stawem'},
+  {name:'Szkoła Podstawowa nr 157',icon:'🏫',color:'#3b82f6',desc:'ul. Rydygiera 20'},
+  {name:'Kościół Nawiedzenia NMP',icon:'⛪',color:'#a855f7',desc:'Parafia osiedlowa'},
+  {name:'Pętla autobusowa Rżąka',icon:'🚌',color:'#f59e0b',desc:'MPK Kraków'},
+  {name:'Szpital Uniwersytecki',icon:'🏥',color:'#ef4444',desc:'Nowa siedziba'},
+  {name:'SM Rżąka (Administracja)',icon:'🏛️',color:'#64748b',desc:'ul. Rydygiera 9/20'},
+  {name:'ul. Rydygiera',icon:'🛣️',color:'#94a3b8',desc:'Główna ulica osiedla'},
+  {name:'Osiedle południe',icon:'🏘️',color:'#22c55e',desc:'Zabudowa jednorodzinna'},
+];
+
+function loadPOI() {
+  let poiData;
+  try { poiData = JSON.parse(ls?.getItem('rzaka-poi-custom') || 'null'); } catch(e){}
+  if (!poiData) poiData = DEFAULT_POI;
+  renderPOI(poiData);
+}
+
+function renderPOI(poiData) {
+  const tbody = document.getElementById('poiTbody');
+  tbody.innerHTML = poiData.map((p, i) => `
+    <tr>
+      <td style="font-size:18px">${p.icon}</td>
+      <td>${p.name}</td>
+      <td><span class="badge badge-blue">${p.color}</span></td>
+      <td style="color:var(--muted)">${p.desc}</td>
+      <td><button class="btn btn-red btn-sm" onclick="deletePOI(${i})">Usuń</button></td>
+    </tr>`).join('');
+}
+
+window.deletePOI = function(i) {
+  let poiData;
+  try { poiData = JSON.parse(ls?.getItem('rzaka-poi-custom') || 'null'); } catch(e){}
+  if (!poiData) poiData = [...DEFAULT_POI];
+  poiData.splice(i, 1);
+  ls?.setItem('rzaka-poi-custom', JSON.stringify(poiData));
+  renderPOI(poiData);
+  showAlert('poiAlert');
+};
+
+document.getElementById('addPoiBtn').addEventListener('click', () => {
+  const name = document.getElementById('newPoiName').value.trim();
+  const icon = document.getElementById('newPoiIcon').value.trim() || '📍';
+  const color= document.getElementById('newPoiColor').value;
+  const desc = document.getElementById('newPoiDesc').value.trim();
+  if (!name) return;
+  let poiData;
+  try { poiData = JSON.parse(ls?.getItem('rzaka-poi-custom') || 'null'); } catch(e){}
+  if (!poiData) poiData = [...DEFAULT_POI];
+  poiData.push({name,icon,color,desc});
+  ls?.setItem('rzaka-poi-custom', JSON.stringify(poiData));
+  renderPOI(poiData);
+  document.getElementById('newPoiName').value='';
+  document.getElementById('newPoiDesc').value='';
+  showAlert('poiAlert');
+});
+
+// ── ANNOUNCE ───────────────────────────────────────────────────
+let announcements = [];
+try { announcements = JSON.parse(ls?.getItem('rzaka-announcements')||'[]'); } catch(e){}
+
+document.getElementById('publishAnn').addEventListener('click', () => {
+  const title = document.getElementById('annTitle').value.trim();
+  const body  = document.getElementById('annBody').value.trim();
+  if (!title || !body) return;
+  announcements.push({
+    id: Date.now(),
+    title,
+    body,
+    cat: document.getElementById('annCat').value,
+    date: document.getElementById('annDate').value,
+    ts: new Date().toLocaleDateString('pl-PL')
+  });
+  ls?.setItem('rzaka-announcements', JSON.stringify(announcements));
+  document.getElementById('statAnnounce').textContent = announcements.length;
+  document.getElementById('annTitle').value = '';
+  document.getElementById('annBody').value  = '';
+  renderAnnouncements();
+  showAlert('announceAlert');
+});
+
+function renderAnnouncements() {
+  const el = document.getElementById('annList');
+  if (!announcements.length) { el.innerHTML='<p style="color:var(--muted)">Brak ogłoszeń.</p>'; return; }
+  el.innerHTML = announcements.map((a,i) => `
+    <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <strong style="color:#e6edf3">${a.title}</strong>
+        <span class="badge badge-blue">${a.cat}</span>
+        <span style="color:var(--muted);font-size:10px;margin-left:auto">${a.ts}</span>
+        <button class="btn btn-red btn-sm" onclick="deleteAnn(${i})">Usuń</button>
+      </div>
+      <div style="color:var(--muted)">${a.body}</div>
+    </div>`).join('');
+}
+renderAnnouncements();
+
+window.deleteAnn = function(i) {
+  announcements.splice(i,1);
+  ls?.setItem('rzaka-announcements', JSON.stringify(announcements));
+  document.getElementById('statAnnounce').textContent = announcements.length;
+  renderAnnouncements();
+};
+
+// ── SETTINGS ───────────────────────────────────────────────────
+document.getElementById('changePwBtn').addEventListener('click', async () => {
+  const p1 = document.getElementById('newPw1').value;
+  const p2 = document.getElementById('newPw2').value;
+  if (!p1 || p1 !== p2) { alert('Hasła muszą być identyczne'); return; }
+  const h = await sha256(p1);
+  ls?.setItem('rzaka-admin-hash', h);
+  document.getElementById('newPw1').value='';
+  document.getElementById('newPw2').value='';
+  showAlert('settingsAlert');
+});
+
+document.getElementById('resetAreasBtn').addEventListener('click', () => {
+  if (!confirm('Przywrócić domyślne zaznaczenia budynków z analizy zdjęcia? Własne obszary zostaną usunięte.')) return;
+  ls?.removeItem('rzaka-areas');
+  loadDashboard();
+  alert('Budynki zresetowane. Odśwież stronę główną.');
+});
+
+document.getElementById('clearPinsBtn').addEventListener('click', () => {
+  if (!confirm('Usunąć wszystkie pinezki i obszary?')) return;
+  ls?.removeItem('rzaka-photo-pins');
+  ls?.removeItem('rzaka-areas');
+  ls?.removeItem('rzaka-poi-pos');
+  loadDashboard();
+  alert('Dane wyczyszczone.');
+});
+
+document.getElementById('saveSiteSettings').addEventListener('click', () => {
+  ls?.setItem('rzaka-site-title', document.getElementById('siteTitle').value);
+  ls?.setItem('rzaka-site-sub', document.getElementById('siteSub').value);
+  showAlert('settingsAlert');
+});
+
+function showAlert(id) {
+  const el = document.getElementById(id);
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
