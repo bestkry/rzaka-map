@@ -215,7 +215,7 @@ canvas#gameCanvas{display:block;cursor:crosshair}
   <div class="score-display" id="v-score">Wynik: 0</div>
   <div style="margin:20px 0;padding:16px;background:rgba(74,222,128,.1);border:1px solid #4ade80;border-radius:12px">
     <div style="font-size:20px;margin-bottom:6px">🗺️ Odblokowano: Rozszerzona Mapa!</div>
-    <p style="color:#86efac;font-size:13px;margin-bottom:12px">Ukończenie obrony Rząki odblokowało dostęp do pełnej mapy osiedla</p>
+    <p style="color:#86efac;font-size:13px;margin-bottom:12px">Przetrwałeś wszystkie 20 fal! Rozszerzona mapa została odblokowana już po fali 15.</p>
     <a href="./extended-map.html" class="big-btn" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#4ade80,#22c55e);color:#000;font-weight:800;padding:14px 32px;border-radius:10px;font-size:16px">🔓 OTWORZ ROZSZERZONĄ MAPĘ</a>
   </div>
   <button class="big-btn" id="btn-restart2" style="margin-top:10px;background:rgba(255,255,255,.1);border:1px solid #555">ZAGRAJ PONOWNIE</button>
@@ -362,49 +362,57 @@ const ENEMY_DEFS = {
   boss:       { name: 'Boss',       hp: 500, speed: 30, reward: 50, color: '#ff0000', radius: 16, freezeResist: false, isBoss: true }
 };
 
-// Wave configurations
+// Wave configurations — HARD MODE
 const WAVES = [];
 function generateWaves() {
   for (let w = 1; w <= TOTAL_WAVES; w++) {
     const enemies = [];
-    // Waves 16-20: faster, more HP
-    const baseHpMult = w <= 10 ? 1 + (w-1)*0.25
-                     : w <= 15 ? 1 + (w-1)*0.3
-                     : 1 + (w-1)*0.4;
-    const baseSpdMult = w <= 10 ? 1 + (w-1)*0.05
-                      : w <= 15 ? 1 + (w-1)*0.07
-                      : 1 + (w-1)*0.1;
-    const hpMult = baseHpMult;
-    const spdMult = baseSpdMult;
-    // Zwiadowcy
-    const nScouts = 3 + w * 2;
-    for (let i = 0; i < nScouts; i++) enemies.push({ type: 'zwiadowca', delay: i * 0.6, hpMult, spdMult });
-    // Ciężarówki (from wave 2)
+    // Exponential difficulty scaling
+    const hpMult = w <= 5  ? 1 + (w-1)*0.3
+                : w <= 10 ? 2 + (w-5)*0.5
+                : w <= 15 ? 4.5 + (w-10)*0.8
+                : 8.5 + (w-15)*2.0;  // waves 16-20: massive HP
+    const spdMult = w <= 10 ? 1 + (w-1)*0.06
+                  : w <= 15 ? 1.5 + (w-10)*0.1
+                  : 2.0 + (w-15)*0.15; // waves 16-20: very fast
+    // Zwiadowcy (więcej z każdą falą)
+    const nScouts = w <= 10 ? 3 + w*2 : 5 + w*3;
+    const scoutSpacing = w >= 16 ? 0.3 : w >= 11 ? 0.45 : 0.6;
+    for (let i = 0; i < nScouts; i++) enemies.push({ type: 'zwiadowca', delay: i*scoutSpacing, hpMult, spdMult });
+    // Ciężarówki (od fali 2, dużo więcej później)
     if (w >= 2) {
-      const nTrucks = Math.floor(w * 0.8);
-      for (let i = 0; i < nTrucks; i++) enemies.push({ type: 'ciezarowka', delay: nScouts * 0.6 + i * 1.5, hpMult, spdMult });
+      const nTrucks = w <= 10 ? Math.floor(w*0.8) : Math.floor(w*1.5);
+      for (let i = 0; i < nTrucks; i++) enemies.push({ type: 'ciezarowka', delay: nScouts*scoutSpacing + i*1.2, hpMult, spdMult });
     }
-    // Drony (from wave 3)
+    // Drony (od fali 3, odporne na mróz)
     if (w >= 3) {
-      const nDrones = Math.floor((w - 1) * 0.7);
-      for (let i = 0; i < nDrones; i++) enemies.push({ type: 'dron', delay: nScouts * 0.6 + 1 + i * 0.9, hpMult, spdMult });
+      const nDrones = w <= 10 ? Math.floor((w-1)*0.7) : Math.floor(w*1.2);
+      for (let i = 0; i < nDrones; i++) enemies.push({ type: 'dron', delay: nScouts*scoutSpacing + 0.5 + i*0.7, hpMult, spdMult });
     }
-    // Boss waves
-    const hasBoss = (w >= 11 && w <= 15 && w % 5 === 0) ||
-                    (w >= 16 && w <= 19 && w % 3 === 0) ||
-                    w === 20;
+    // Boss waves: 10,13,15,16,18,19,20
+    const hasBoss = w === 10 || w === 13 || w >= 15;
     if (hasBoss) {
-      const bossCount = w === 20 ? 1 : 1;
-      // Wave 20: massive boss (20x HP) + fast escort
-      const bossHpMult = w === 20 ? 20 : (w >= 16 ? 3 : 2);
-      const bossSpdMult = w === 20 ? 0.7 : 1;
       const lastDelay = enemies.length > 0 ? Math.max(...enemies.map(e => e.delay)) : 0;
-      enemies.push({ type: 'boss', delay: lastDelay + 2, hpMult: bossHpMult, spdMult: bossSpdMult, isBossSpawn: true });
       if (w === 20) {
-        // Escort fast enemies
-        for (let i = 0; i < 8; i++) {
-          enemies.push({ type: 'dron', delay: lastDelay + 2 + i * 0.3, hpMult: hpMult * 1.5, spdMult: spdMult * 1.5 });
-        }
+        // FALA 20: NIEMOŻLIWA — 3 bossy + 20 szybkich dronów + 15 ciężarówek
+        enemies.push({ type: 'boss', delay: lastDelay+1, hpMult: 50, spdMult: 0.8, isBossSpawn: true });
+        enemies.push({ type: 'boss', delay: lastDelay+4, hpMult: 35, spdMult: 1.0, isBossSpawn: true });
+        enemies.push({ type: 'boss', delay: lastDelay+7, hpMult: 25, spdMult: 1.2, isBossSpawn: true });
+        for (let i = 0; i < 20; i++) enemies.push({ type: 'dron', delay: lastDelay+1+i*0.25, hpMult: hpMult*2, spdMult: spdMult*1.8 });
+        for (let i = 0; i < 15; i++) enemies.push({ type: 'ciezarowka', delay: lastDelay+2+i*0.8, hpMult: hpMult*2.5, spdMult: spdMult*1.3 });
+      } else if (w === 19) {
+        // 2 bossy + dużo escortów
+        enemies.push({ type: 'boss', delay: lastDelay+1, hpMult: 18, spdMult: 0.9, isBossSpawn: true });
+        enemies.push({ type: 'boss', delay: lastDelay+4, hpMult: 12, spdMult: 1.1, isBossSpawn: true });
+        for (let i = 0; i < 12; i++) enemies.push({ type: 'dron', delay: lastDelay+1+i*0.3, hpMult: hpMult*1.5, spdMult: spdMult*1.5 });
+      } else if (w >= 16) {
+        // Silne bossy
+        enemies.push({ type: 'boss', delay: lastDelay+2, hpMult: 5+w*0.8, spdMult: 0.9, isBossSpawn: true });
+        for (let i = 0; i < 6; i++) enemies.push({ type: 'zwiadowca', delay: lastDelay+2+i*0.2, hpMult: hpMult*1.3, spdMult: spdMult*1.6 });
+      } else {
+        // Fale 10,13,15: standardowy boss
+        const bossHp = w === 15 ? 4 : w === 13 ? 3 : 2;
+        enemies.push({ type: 'boss', delay: lastDelay+2, hpMult: bossHp, spdMult: 1, isBossSpawn: true });
       }
     }
     WAVES.push(enemies);
@@ -1406,13 +1414,15 @@ function update(dt) {
     const bonus = 50 + currentWave * 20;
     coins += bonus;
     score += bonus;
+    // Odblokuj mapę po fali 15
+    if (currentWave >= 15) {
+      try { localStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
+      try { sessionStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
+    }
     if (currentWave >= TOTAL_WAVES) {
       gameState = 'victory';
       document.getElementById('screen-victory').style.display = '';
       document.getElementById('v-score').textContent = 'Wynik: ' + score;
-      // Odblokuj rozszerzoną mapę
-      try { localStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
-      try { sessionStorage.setItem('rzaka-extmap-unlocked', 'true'); } catch(e){}
       hideGameUI();
       // Submit score on victory
       const nick = playerNick || document.getElementById('nick-input').value.trim() || 'Gracz';
