@@ -1694,3 +1694,184 @@ button{cursor:pointer;font:inherit}
 .stat-card:nth-child(6) .stat-value{color:#34d399}
 .stat-card:nth-child(7) .stat-value{color:#38bdf8}
 .stat-card:nth-child(8) .stat-value{color:#fb923c}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE (< 640px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* ── Header: horizontal scroll + compact buttons ─────────── */
+  .header {
+    padding: 0 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 4px;
+    /* Remove space-between so buttons flow inline */
+    justify-content: flex-start;
+    height: 52px;
+  }
+  .header::-webkit-scrollbar { display: none; }
+
+  /* Logo: shrink text, keep icon */
+  .logo {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .logo-name { font-size: 13px; }
+  .logo-sub { display: none; }
+
+  /* Header-right: inline flex, no wrapping */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Compact ALL header buttons */
+  .header button,
+  .header a,
+  .header-right button,
+  .header-right a {
+    font-size: 11px !important;
+    padding: 5px 8px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-height: 34px;
+  }
+
+  /* Pin-mode button: icon only on very small screens */
+  .btn-pin-mode .btn-label { display: none; }
+
+  /* ── Drawer toggle: smaller ──────────────────────────────── */
+  .drawer-toggle {
+    top: 62px;
+    font-size: 11px;
+    padding: 6px 10px 6px 8px;
+  }
+
+  /* ── Map fills below new shorter header ──────────────────── */
+  .sidebar { top: 52px; }
+  #map { top: 0; }
+
+  /* ── Building side panel: full width ─────────────────────── */
+  .bldg-panel {
+    width: 100% !important;
+    max-width: 100vw !important;
+    right: -100vw;
+    border-radius: 0;
+  }
+  .bldg-panel.open { right: 0; }
+  .bldg-panel-inner { padding: 0 16px 28px; }
+  .bldg-name { font-size: 18px; }
+
+  /* ── Setup modal: full width, no radius ──────────────────── */
+  .setup-box {
+    width: 100% !important;
+    max-width: 100vw !important;
+    border-radius: 12px;
+    padding: 24px 20px;
+  }
+
+  /* Avatar grid: smaller thumbnails, touch-friendly */
+  .av-btn {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  .av-btn img {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* ── Chat bar: compact ───────────────────────────────────── */
+  .chat-bar {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .chat-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .chat-name { display: none; }
+  .chat-input {
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+  .chat-send {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
+  /* ── Chat history panel: full width ─────────────────────── */
+  .chat-hist-panel { width: 100% !important; }
+
+  /* ── Patch notes modal: tighter padding ─────────────────── */
+  .pn-modal {
+    border-radius: 12px;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  .pn-header { padding-left: 16px !important; padding-right: 16px !important; }
+  .pn-body   { padding-left: 16px !important; padding-right: 16px !important; }
+  .pn-footer { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* ── Stats modal ─────────────────────────────────────────── */
+  .stats-modal {
+    padding: 24px 16px;
+    border-radius: 12px;
+  }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+
+  /* ── Draw counter badge ──────────────────────────────────── */
+  #drawCounter {
+    bottom: 60px;
+    font-size: 11px;
+    padding: 5px 12px;
+  }
+
+  /* ── HUD / POI markers: scale down slightly ──────────────── */
+  .hud-mk { transform: scale(0.85); }
+
+  /* ── About overlay ───────────────────────────────────────── */
+  .about-content { padding: 0 14px 32px; }
+  .about-title   { font-size: 28px; }
+  .about-stats   { gap: 14px; flex-wrap: wrap; }
+
+  /* ── Events panel: already has width:100% via earlier rule,
+        ensure padding is touch-friendly ───────────────────── */
+  .events-panel { width: 100% !important; }
+  .event-card   { padding: 10px 12px; }
+
+  /* ── FAQ panel ───────────────────────────────────────────── */
+  .faq-panel { width: 100% !important; }
+
+  /* ── History panel ───────────────────────────────────────── */
+  .hist-card { width: 240px; }
+
+  /* ── My building hint ────────────────────────────────────── */
+  .my-building-hint {
+    font-size: 10px;
+    padding: 4px 10px;
+    right: 8px;
+    top: 62px;
+  }
+
+  /* ── Tap target enforcement (minimum 44px) ───────────────── */
+  .bldg-panel-close,
+  .pn-close,
+  .stats-close,
+  .events-header button,
+  #eventSubmit {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* ── Leaflet zoom control: position below shorter header ─── */
+  .leaflet-top.leaflet-left { top: 60px; }
+
+}
+/* ── End mobile responsive ──────────────────────────────────── */
