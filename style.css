@@ -309,6 +309,76 @@ button{cursor:pointer;font:inherit}
     drop-shadow(0 0 10px currentColor)
     drop-shadow(0 0 4px rgba(255,255,255,.3));
 }
+/* ─── PATCH NOTES MODAL ───────────────────────────────── */
+.pn-backdrop{
+  position:fixed;inset:0;z-index:9990;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;
+  animation:pnFadeIn .4s ease;
+}
+@keyframes pnFadeIn{from{opacity:0}to{opacity:1}}
+.pn-modal{
+  background:#161b22;border:1px solid #30363d;
+  border-radius:16px;width:480px;max-width:92vw;max-height:85vh;
+  overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 0 60px rgba(59,130,246,.15),0 20px 40px rgba(0,0,0,.5);
+  animation:pnSlideUp .5s cubic-bezier(.16,1,.3,1);
+}
+@keyframes pnSlideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.pn-header{
+  padding:28px 28px 16px;text-align:center;
+  border-bottom:1px solid #30363d;
+  background:linear-gradient(180deg,rgba(59,130,246,.06),transparent);
+}
+.pn-ver{
+  display:inline-block;padding:3px 12px;border-radius:20px;
+  background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);
+  color:#93c5fd;font-size:12px;font-weight:700;
+  font-family:'Space Grotesk',sans-serif;letter-spacing:.5px;
+  margin-bottom:10px;
+}
+.pn-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:22px;font-weight:700;color:#e2e8f0;margin:0 0 4px;
+}
+.pn-date{color:#6b7280;font-size:12px;margin:0}
+.pn-body{
+  padding:20px 28px;overflow-y:auto;flex:1;
+}
+.pn-section{margin-bottom:18px}
+.pn-section:last-child{margin-bottom:0}
+.pn-badge{
+  display:inline-block;padding:3px 10px;border-radius:6px;
+  font-size:11px;font-weight:700;letter-spacing:.8px;
+  font-family:'Space Grotesk',sans-serif;margin-bottom:10px;
+}
+.pn-new{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
+.pn-fix{background:rgba(250,204,21,.1);color:#facc15;border:1px solid rgba(250,204,21,.25)}
+.pn-improve{background:rgba(139,92,246,.1);color:#a78bfa;border:1px solid rgba(139,92,246,.25)}
+.pn-body ul{
+  list-style:none;padding:0;margin:0;
+}
+.pn-body li{
+  padding:6px 0;font-size:13px;color:#9ca3af;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  line-height:1.5;
+}
+.pn-body li:last-child{border:none}
+.pn-body li strong{color:#e2e8f0}
+.pn-footer{
+  padding:16px 28px;border-top:1px solid #30363d;
+  text-align:center;
+}
+.pn-btn{
+  width:100%;padding:12px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;
+  transition:transform .1s,box-shadow .15s;
+}
+.pn-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(59,130,246,.4)}
+.pn-btn:active{transform:translateY(0)}
+
 /* ─── BUILDING SIDE PANEL ────────────────────────────────── */
 .bldg-panel{
   position:fixed;top:0;right:-400px;width:380px;max-width:92vw;height:100vh;

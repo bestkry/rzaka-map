@@ -16,6 +16,54 @@
   <!-- ══════════════════════════════════════════════════
        SCI-FI LOADING SCREEN
        ══════════════════════════════════════════════════ -->
+  <!-- PATCH NOTES MODAL -->
+  <div class="pn-backdrop" id="pnBackdrop">
+    <div class="pn-modal">
+      <div class="pn-header">
+        <div class="pn-ver">v2.0</div>
+        <h2 class="pn-title">Co nowego na mapie?</h2>
+        <p class="pn-date">10 kwietnia 2026</p>
+      </div>
+      <div class="pn-body">
+        <div class="pn-section">
+          <div class="pn-badge pn-new">✨ NOWE</div>
+          <ul>
+            <li><strong>Gra Tower Defense</strong> — broń osiedla przed 20 falami wrogów z bossami</li>
+            <li><strong>Upgrade wieżyczek</strong> — 3 poziomy ulepszeń z nowymi wizualiami</li>
+            <li><strong>Kółko i Krzyżyk multiplayer</strong> — graj z kolegami w czasie rzeczywistym</li>
+            <li><strong>Ranking online</strong> — tabele wyników w obu grach przez relay serwer</li>
+            <li><strong>Rozszerzona mapa</strong> — ukryta nagrodza za ukończenie TD</li>
+            <li><strong>Panel boczny budynku</strong> — kliknij budynek = nazwa, kategoria, zdjęcie, opis</li>
+            <li><strong>31 zaznaczonych budynków</strong> — bloki, szpital, kościół, szkoła, TBS</li>
+          </ul>
+        </div>
+        <div class="pn-section">
+          <div class="pn-badge pn-fix">🛠 POPRAWKI</div>
+          <ul>
+            <li>Naprawiono rysowanie budynków (punkty nie giną po zapisie)</li>
+            <li>Chat działa przez własny relay serwer (koniec z błędami WebSocket)</li>
+            <li>Modal rejestracji poprawnie chowa się przy wyborze budynku</li>
+            <li>GunDB owinięty w try-catch — strona działa nawet bez chatu</li>
+            <li>Tryb administratora z hasłem — tylko admin edytuje mapę</li>
+          </ul>
+        </div>
+        <div class="pn-section">
+          <div class="pn-badge pn-improve">🚀 ULEPSZENIA</div>
+          <ul>
+            <li>Neonowy glow i tooltip z nazwą budynku na hover</li>
+            <li>Eksport budynków przyciskiem (zamiast konsoli)</li>
+            <li>Sci-fi loader + skaner z dźwiękiem</li>
+            <li>16 awatarów cyberpunk do wyboru</li>
+            <li>Historia osiedla z 5 epokami</li>
+          </ul>
+        </div>
+      </div>
+      <div class="pn-footer">
+        <button class="pn-btn" id="pnClose">Rozumiem — pokaż mapę</button>
+      </div>
+    </div>
+  </div>
+
   <div id="scifiLoader">
     <canvas id="loaderCanvas"></canvas>
     <div class="ldr-vignette"></div>
@@ -518,6 +566,24 @@
       }
     }
   } catch(e){}
+  </script>
+  <script>
+  // Patch notes — pokaż raz na wersję
+  (function() {
+    var PN_VER = 'v2.0';
+    var seen = false;
+    try { seen = localStorage.getItem('rzaka-pn-seen') === PN_VER; } catch(e){}
+    var bd = document.getElementById('pnBackdrop');
+    if (!bd) return;
+    if (seen) { bd.remove(); return; }
+    bd.style.display = 'flex';
+    document.getElementById('pnClose').addEventListener('click', function() {
+      bd.style.opacity = '0';
+      bd.style.transition = 'opacity .3s';
+      setTimeout(function() { bd.remove(); }, 300);
+      try { localStorage.setItem('rzaka-pn-seen', PN_VER); } catch(e){}
+    });
+  })();
   </script>
 </body>
 </html>
