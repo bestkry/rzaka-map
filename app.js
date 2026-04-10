@@ -1735,6 +1735,7 @@ document.addEventListener('keydown', e => {
     closeViewModal();
     try { document.getElementById('areaEditBackdrop').style.display = 'none'; } catch(_){}
     try { document.getElementById('setupBackdrop').style.display    = 'none'; } catch(_){}
+    try { document.getElementById('onlinePanel')?.classList.remove('open'); } catch(_){}
   } catch(e) { console.warn('keydown handler:', e); }
 });
 
@@ -3203,4 +3204,164 @@ document.addEventListener('keydown', e => {
     }, 60000); // every minute
 
   } catch(err) { console.warn('initMelanz:', err); }
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   ONLINE PRESENCE SYSTEM
+   Real-time dot markers on map + side panel showing who's online.
+   ═══════════════════════════════════════════════════════════════ */
+(function initPresence() {
+  try {
+    const presenceDB = gun ? gun.get('rzaka-presence') : null;
+    const presenceMarkers = {}; // id → Leaflet marker
+    const presenceData = {};    // id → { nick, building, avatar, lat, lng, ts }
+    const ONLINE_TIMEOUT = 2 * 60 * 1000;  // 2 min
+    const AWAY_TIMEOUT   = 10 * 60 * 1000; // 10 min
+
+    function getMyId() {
+      if (!profile) return null;
+      return 'user-' + (profile.name || '').replace(/[^a-zA-Z0-9]/g, '_');
+    }
+
+    // ── Heartbeat ──────────────────────────────────────────────
+    function sendHeartbeat() {
+      if (!presenceDB || !profile) return;
+      try {
+        const myId = getMyId();
+        if (!myId) return;
+        presenceDB.get(myId).put({
+          nick:     profile.name,
+          building: profile.buildingName || '',
+          avatar:   profile.avatar || '',
+          lat:      profile.lat,
+          lng:      profile.lng,
+          ts:       Date.now()
+        });
+      } catch(e) {}
+    }
+    setInterval(sendHeartbeat, 30000);
+    setTimeout(sendHeartbeat, 2000);
+
+    // ── escapeHtml helper ───────────────────────────────────────
+    function escapeHtml(s) {
+      if (typeof escH === 'function') return escH(s);
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Map marker helpers ──────────────────────────────────────
+    function updatePresenceMarker(key, data) {
+      try {
+        if (key === getMyId()) return; // skip self
+        if (!data.lat || !data.lng) return;
+        const age = Date.now() - data.ts;
+        const status = age < ONLINE_TIMEOUT ? 'online' : 'away';
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="presence-dot-inner ${status}"><span class="presence-nick">${escapeHtml(data.nick)}</span></div>`,
+          iconSize: [14, 14], iconAnchor: [7, 7]
+        });
+        if (presenceMarkers[key]) {
+          presenceMarkers[key].setIcon(icon);
+          presenceMarkers[key].setLatLng([data.lat, data.lng]);
+        } else {
+          presenceMarkers[key] = L.marker([data.lat, data.lng], {
+            icon, interactive: true, zIndexOffset: -100
+          }).addTo(map);
+        }
+      } catch(e) {}
+    }
+
+    function removePresenceMarker(key) {
+      try {
+        if (presenceMarkers[key]) {
+          map.removeLayer(presenceMarkers[key]);
+          delete presenceMarkers[key];
+        }
+      } catch(e) {}
+    }
+
+    // ── Listen for presence updates ─────────────────────────────
+    if (presenceDB) {
+      try {
+        presenceDB.map().on((data, key) => {
+          try {
+            if (!data || !data.nick || !data.ts) return;
+            const age = Date.now() - data.ts;
+            if (age > AWAY_TIMEOUT) {
+              removePresenceMarker(key);
+              delete presenceData[key];
+              return;
+            }
+            presenceData[key] = { ...data, key };
+            updatePresenceMarker(key, data);
+            renderOnlinePanel();
+          } catch(e) {}
+        });
+      } catch(e) { console.warn('presenceDB.map().on:', e); }
+    }
+
+    // ── Periodic cleanup (every 60s) ────────────────────────────
+    setInterval(() => {
+      try {
+        Object.keys(presenceData).forEach(key => {
+          if (Date.now() - presenceData[key].ts > AWAY_TIMEOUT) {
+            removePresenceMarker(key);
+            delete presenceData[key];
+          }
+        });
+        renderOnlinePanel();
+      } catch(e) {}
+    }, 60000);
+
+    // ── Online panel UI ─────────────────────────────────────────
+    const panel   = document.getElementById('onlinePanel');
+    const btnOpen = document.getElementById('btnOnline');
+    const btnClose = document.getElementById('onlineClose');
+
+    function openPanel()  { if (panel) { panel.classList.add('open'); renderOnlinePanel(); } }
+    function closePanel() { if (panel) panel.classList.remove('open'); }
+
+    btnOpen?.addEventListener('click', openPanel);
+    btnClose?.addEventListener('click', closePanel);
+
+    function renderOnlinePanel() {
+      try {
+        const list  = document.getElementById('onlineList');
+        const count = document.getElementById('onlineCount');
+        if (!list || !count) return;
+
+        const now    = Date.now();
+        const sorted = Object.values(presenceData)
+          .filter(d => now - d.ts < AWAY_TIMEOUT)
+          .sort((a, b) => b.ts - a.ts);
+
+        const onlineCount = sorted.filter(d => now - d.ts < ONLINE_TIMEOUT).length;
+        const awayCount   = sorted.length - onlineCount;
+        count.textContent = awayCount > 0
+          ? `${onlineCount} online · ${awayCount} niedawno`
+          : `${onlineCount} online`;
+
+        list.innerHTML = sorted.map(d => {
+          const age      = now - d.ts;
+          const status   = age < ONLINE_TIMEOUT ? 'online' : 'away';
+          const timeText = age < 10000   ? 'teraz'
+                         : age < 60000   ? Math.floor(age / 1000) + 's temu'
+                         :                 Math.floor(age / 60000) + ' min temu';
+          const avatarHtml = d.avatar
+            ? `<img class="online-avatar" src="${escapeHtml(d.avatar)}" alt="">`
+            : `<div class="online-avatar" style="background:#30363d;display:flex;align-items:center;justify-content:center;font-size:14px">👤</div>`;
+          return `<div class="online-item">
+            <div class="online-dot ${status}"></div>
+            ${avatarHtml}
+            <div class="online-info">
+              <div class="online-nick">${escapeHtml(d.nick)}</div>
+              <div class="online-building">${escapeHtml(d.building || 'Nieznany budynek')}</div>
+            </div>
+            <div class="online-time ${status}">${timeText}</div>
+          </div>`;
+        }).join('');
+      } catch(e) {}
+    }
+
+  } catch(e) { console.warn('initPresence:', e); }
 })();

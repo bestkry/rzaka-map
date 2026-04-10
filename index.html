@@ -196,6 +196,7 @@
       <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
       <button class="btn-events" id="btnEvents">📅 Wydarzenia</button>
       <button class="btn-stats"  id="btnStats">📊 Statystyki</button>
+      <button class="btn-online" id="btnOnline">🟢 Online</button>
       <button class="btn-spotted" id="btnSpotted">📸 Spotted</button>
       <button class="btn-melanz"  id="btnMelanz">🎉 Melanż</button>
       <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
@@ -243,6 +244,7 @@
       <button class="mm-item" data-for="btnFaq">❓ Pomoc</button>
       <button class="mm-item" data-for="btnEvents">📅 Wydarzenia</button>
       <button class="mm-item" data-for="btnStats">📊 Statystyki</button>
+      <button class="mm-item" data-for="btnOnline">🟢 Kto jest online</button>
       <button class="mm-item" data-for="btnSpotted">📸 Spotted</button>
       <button class="mm-item" data-for="btnMelanz">🎉 Melanż</button>
       <button class="mm-item" data-for="btnPatchNotes">📝 Nowości</button>
@@ -506,6 +508,18 @@
   <!-- My building location hint (top-right, after registration) -->
   <div class="my-building-hint" id="myBuildingHint" style="display:none">
     Twój budynek zaznaczony · <span id="myBuildingReset">Zmień lokalizację</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       ONLINE PANEL (right slide-in)
+       ══════════════════════════════════════════════════ -->
+  <div class="online-panel" id="onlinePanel">
+    <div class="online-header">
+      <h3>🟢 Kto jest online</h3>
+      <button id="onlineClose">✕</button>
+    </div>
+    <div class="online-count" id="onlineCount">0 online</div>
+    <div class="online-list" id="onlineList"></div>
   </div>
 
   <!-- ══════════════════════════════════════════════════
