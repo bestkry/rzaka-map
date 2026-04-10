@@ -570,18 +570,13 @@
   <script>
   // Patch notes — pokaż raz na wersję
   (function() {
-    var PN_VER = 'v2.0';
-    var seen = false;
-    try { seen = localStorage.getItem('rzaka-pn-seen') === PN_VER; } catch(e){}
     var bd = document.getElementById('pnBackdrop');
     if (!bd) return;
-    if (seen) { bd.remove(); return; }
     bd.style.display = 'flex';
     document.getElementById('pnClose').addEventListener('click', function() {
       bd.style.opacity = '0';
       bd.style.transition = 'opacity .3s';
       setTimeout(function() { bd.remove(); }, 300);
-      try { localStorage.setItem('rzaka-pn-seen', PN_VER); } catch(e){}
     });
   })();
   </script>
