@@ -155,24 +155,26 @@
         Zaznacz budynek
       </button>
     </div>
-    <!-- Mobile: hamburger -->
+    <!-- Mobile: hamburger button (menu przeniesione poza header) -->
     <button class="hamburger mobile-only" id="hamburgerBtn">☰</button>
-    <div class="mobile-menu" id="mobileMenu">
-      <button class="mm-close" id="mmClose">✕</button>
-      <nav class="mm-nav">
-        <button class="mm-item" data-for="btnAbout">🏙 O osiedlu</button>
-        <button class="mm-item" data-for="btnHistory">📅 Historia</button>
-        <button class="mm-item" data-for="btnFaq">❓ Pomoc</button>
-        <button class="mm-item" data-for="btnEvents">📅 Wydarzenia</button>
-        <button class="mm-item" data-for="btnStats">📊 Statystyki</button>
-        <button class="mm-item" data-for="btnPatchNotes">📝 Nowości</button>
-        <a href="./game.html" class="mm-item">🎮 Tower Defense</a>
-        <a href="./tictactoe.html" class="mm-item">✖◯ Kółko i Krzyżyk</a>
-        <a href="./extended-map.html" class="mm-item" id="btnExtMapMobile">🔒 Rozszerzona Mapa</a>
-        <button class="mm-item mm-admin" data-for="adminLogin">⚙ Tryb administratora</button>
-      </nav>
-    </div>
   </header>
+  <!-- MOBILE MENU (poza header żeby działało na iOS) -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mm-close" id="mmClose">✕</button>
+    <nav class="mm-nav">
+      <button class="mm-item" data-for="btnAbout">🏙 O osiedlu</button>
+      <button class="mm-item" data-for="btnHistory">📅 Historia</button>
+      <button class="mm-item" data-for="btnFaq">❓ Pomoc</button>
+      <button class="mm-item" data-for="btnEvents">📅 Wydarzenia</button>
+      <button class="mm-item" data-for="btnStats">📊 Statystyki</button>
+      <button class="mm-item" data-for="btnPatchNotes">📝 Nowości</button>
+      <a href="./game.html" class="mm-item">🎮 Tower Defense</a>
+      <a href="./tictactoe.html" class="mm-item">✖◯ Kółko i Krzyżyk</a>
+      <a href="./extended-map.html" class="mm-item" id="btnExtMapMobile">🔒 Rozszerzona Mapa</a>
+      <button class="mm-item mm-admin" data-for="adminLogin">⚙ Tryb administratora</button>
+    </nav>
+  </div>
+
 
   <!-- ══════════════════════════════════════════════════
        CHAT HISTORY PANEL (right drawer)

@@ -1706,13 +1706,19 @@ button{cursor:pointer;font:inherit}
   cursor:pointer;flex-shrink:0;margin-left:auto;
 }
 .mobile-menu{
-  position:fixed;top:0;right:-300px;width:280px;height:100vh;
-  background:rgba(13,17,23,.97);backdrop-filter:blur(20px);
+  position:fixed;top:0;right:0;width:280px;height:100%;
+  background:rgba(13,17,23,.98);backdrop-filter:blur(20px);
   border-left:1px solid #30363d;z-index:8000;
-  transition:right .3s cubic-bezier(.16,1,.3,1);
   overflow-y:auto;padding:20px 0;
+  transform:translateX(100%);
+  -webkit-transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.16,1,.3,1);
+  -webkit-transition:-webkit-transform .3s cubic-bezier(.16,1,.3,1);
 }
-.mobile-menu.open{right:0}
+.mobile-menu.open{
+  transform:translateX(0);
+  -webkit-transform:translateX(0);
+}
 .mm-backdrop{
   position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:7999;display:none;
 }
