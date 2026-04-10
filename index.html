@@ -20,16 +20,23 @@
   <div class="pn-backdrop" id="pnBackdrop">
     <div class="pn-modal">
       <div class="pn-header">
-        <div class="pn-ver">v2.3</div>
+        <div class="pn-ver">v2.4</div>
         <h2 class="pn-title">Co nowego na mapie?</h2>
         <p class="pn-date">10 kwietnia 2026</p>
       </div>
       <div class="pn-body">
         <div class="pn-section">
+          <div class="pn-badge pn-new">✨ NOWE w v2.4</div>
+          <ul>
+            <li><strong>📸 Spotted Rżąka</strong> — zobaczysz kogoś na osiedlu? Zrób zdjęcie i przypnij na mapie! Feed z ostatnimi spotami, auto-znikanie po 24h</li>
+            <li><strong>🎉 Melanż</strong> — ogłoś imprezę na mapie z emoji, godziną i kontaktem. Badge "TERAZ!" / "ZA X H", auto-znikanie po 12h</li>
+            <li><strong>💀 TD trudniejszy</strong> — fala 20 praktycznie niemożliwa (3 bossy + 35 wrogów), mapa odblokowana po fali 15</li>
+          </ul>
+        </div>
+        <div class="pn-section">
           <div class="pn-badge pn-fix">🛠 POPRAWKI w v2.3</div>
           <ul>
-            <li><strong>🏆 Ranking TD globalny</strong> — wyniki Tower Defense zapisują się przez relay serwer i są widoczne dla wszystkich graczy</li>
-            <li>Naprawiono połączenie z własnym serwerem (zamiast niedzialających serwerów Heroku)</li>
+            <li><strong>🏆 Ranking TD globalny</strong> — wyniki widoczne dla wszystkich graczy przez relay serwer</li>
           </ul>
         </div>
         <div class="pn-section">
@@ -175,6 +182,8 @@
       <button class="btn-faq"     id="btnFaq" title="Pomoc i FAQ">❓ Pomoc</button>
       <button class="btn-events" id="btnEvents">📅 Wydarzenia</button>
       <button class="btn-stats"  id="btnStats">📊 Statystyki</button>
+      <button class="btn-spotted" id="btnSpotted">📸 Spotted</button>
+      <button class="btn-melanz"  id="btnMelanz">🎉 Melanż</button>
       <button class="btn-patchnotes" id="btnPatchNotes" title="Patch Notes">📝 Nowości</button>
       <a href="./game.html" class="btn-game-link" title="Mini gra: Obrona Rżąki">🎮 TD</a>
       <a href="./tictactoe.html" class="btn-game-link" title="Kółko i Krzyżyk — Multiplayer" style="background:rgba(244,114,182,.12);border-color:rgba(244,114,182,.4);color:#f9a8d4">✖◯ Graj</a>
@@ -198,6 +207,8 @@
       <button class="mm-item" data-for="btnFaq">❓ Pomoc</button>
       <button class="mm-item" data-for="btnEvents">📅 Wydarzenia</button>
       <button class="mm-item" data-for="btnStats">📊 Statystyki</button>
+      <button class="mm-item" data-for="btnSpotted">📸 Spotted</button>
+      <button class="mm-item" data-for="btnMelanz">🎉 Melanż</button>
       <button class="mm-item" data-for="btnPatchNotes">📝 Nowości</button>
       <a href="./game.html" class="mm-item">🎮 Tower Defense</a>
       <a href="./tictactoe.html" class="mm-item">✖◯ Kółko i Krzyżyk</a>
@@ -457,6 +468,70 @@
   <!-- My building location hint (top-right, after registration) -->
   <div class="my-building-hint" id="myBuildingHint" style="display:none">
     Twój budynek zaznaczony · <span id="myBuildingReset">Zmień lokalizację</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SPOTTED PANEL (right slide-in)
+       ══════════════════════════════════════════════════ -->
+  <div class="spotted-panel" id="spottedPanel">
+    <div class="spotted-header">
+      <h3>📸 Spotted Rżąka</h3>
+      <button id="spottedClose">✕</button>
+    </div>
+    <button class="spotted-add-btn" id="spottedAddBtn">+ Dodaj Spotted</button>
+    <div class="spotted-feed" id="spottedFeed"></div>
+  </div>
+
+  <!-- Spotted creation modal -->
+  <div class="spotted-create-backdrop" id="spottedCreateBackdrop" style="display:none">
+    <div class="spotted-create-modal">
+      <h3>📸 Nowy Spotted</h3>
+      <p>Kliknij na mapę żeby wybrać lokalizację</p>
+      <div class="spotted-photo-upload" id="spottedPhotoUpload">
+        <span>📷</span><p>Kliknij aby dodać zdjęcie</p>
+      </div>
+      <img id="spottedPhotoPreview" style="display:none" alt="Podgląd zdjęcia">
+      <input type="file" accept="image/*" id="spottedPhotoInput" style="display:none">
+      <input id="spottedDesc" placeholder="Kogo widzisz? Np. 'Paweł gra w piłkę na boisku'">
+      <div class="spotted-loc-info" id="spottedLocInfo">📍 Kliknij na mapę aby wybrać miejsce</div>
+      <button id="spottedSubmit" disabled>📸 Opublikuj Spotted</button>
+      <button id="spottedCancel">Anuluj</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       MELANŻ PANEL (right slide-in)
+       ══════════════════════════════════════════════════ -->
+  <div class="melanz-panel" id="melanzPanel">
+    <div class="melanz-header">
+      <h3>🎉 Melanż na Rżące</h3>
+      <button id="melanzClose">✕</button>
+    </div>
+    <button class="melanz-add-btn" id="melanzAddBtn">+ Ogłoś melanż</button>
+    <div class="melanz-feed" id="melanzFeed"></div>
+  </div>
+
+  <!-- Melanż creation modal -->
+  <div class="melanz-create-backdrop" id="melanzCreateBackdrop" style="display:none">
+    <div class="melanz-create-modal">
+      <h3>🎉 Nowy Melanż</h3>
+      <input id="melanzTitle" placeholder="Nazwa imprezy, np. 'Grillowanie u Marka'">
+      <div class="melanz-emoji-picker">
+        <button class="melanz-emoji active" data-emoji="🎉">🎉</button>
+        <button class="melanz-emoji" data-emoji="🍺">🍺</button>
+        <button class="melanz-emoji" data-emoji="🔥">🔥</button>
+        <button class="melanz-emoji" data-emoji="🎵">🎵</button>
+        <button class="melanz-emoji" data-emoji="🏠">🏠</button>
+        <button class="melanz-emoji" data-emoji="⚽">⚽</button>
+      </div>
+      <input id="melanzTime" type="time" value="20:00">
+      <input id="melanzDate" type="date">
+      <input id="melanzContact" placeholder="Kontakt: np. 'Zadzwoń 123456789' lub 'Napisz na IG @marek'">
+      <textarea id="melanzInfo" placeholder="Dodatkowe info... np. 'Przynieś piwo, gramy w FIFA'"></textarea>
+      <div class="melanz-loc-info" id="melanzLocInfo">📍 Kliknij na mapę aby wybrać miejsce melanżu</div>
+      <button id="melanzSubmit" disabled>🎉 Ogłoś melanż!</button>
+      <button id="melanzCancel">Anuluj</button>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════════════════

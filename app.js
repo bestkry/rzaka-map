@@ -2208,3 +2208,755 @@ document.addEventListener('keydown', e => {
 
   } catch(e) { console.warn('initStats:', e); }
 })();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FEATURE: SPOTTED (📸)
+   Users pin photos of people / moments they see on the estate.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function initSpotted() {
+  try {
+
+    /* ── DOM refs ──────────────────────────────────────────────────────── */
+    const panel         = document.getElementById('spottedPanel');
+    const btnSpotted    = document.getElementById('btnSpotted');
+    const closeBtn      = document.getElementById('spottedClose');
+    const addBtn        = document.getElementById('spottedAddBtn');
+    const feed          = document.getElementById('spottedFeed');
+    const backdrop      = document.getElementById('spottedCreateBackdrop');
+    const photoUpload   = document.getElementById('spottedPhotoUpload');
+    const photoInput    = document.getElementById('spottedPhotoInput');
+    const photoPreview  = document.getElementById('spottedPhotoPreview');
+    const descInput     = document.getElementById('spottedDesc');
+    const locInfo       = document.getElementById('spottedLocInfo');
+    const submitBtn     = document.getElementById('spottedSubmit');
+    const cancelBtn     = document.getElementById('spottedCancel');
+
+    if (!panel || !btnSpotted) return;
+
+    /* ── GunDB ─────────────────────────────────────────────────────────── */
+    function getSpottedDB() {
+      try { return gun ? gun.get('rzaka-spotted') : null; } catch(e) { return null; }
+    }
+
+    /* ── Anti-spam cooldown ────────────────────────────────────────────── */
+    let lastSpottedTime = 0;
+    const COOLDOWN_MS   = 120000; // 2 min
+
+    /* ── State ─────────────────────────────────────────────────────────── */
+    let spottedPendingLat = null;
+    let spottedPendingLng = null;
+    let spottedPhotoData  = null; // base64
+    let spottedPickMode   = false;
+    let cachedSpots       = {};   // key → spotObj
+    const spottedMarkers  = {};   // key → leaflet marker
+
+    /* ── Panel open / close ────────────────────────────────────────────── */
+    function openPanel() {
+      panel.classList.add('open');
+      btnSpotted.classList.add('open');
+    }
+    function closePanel() {
+      panel.classList.remove('open');
+      btnSpotted.classList.remove('open');
+    }
+    btnSpotted.addEventListener('click', () =>
+      panel.classList.contains('open') ? closePanel() : openPanel()
+    );
+    closeBtn.addEventListener('click', closePanel);
+    map.on('click', function() { if (!spottedPickMode) closePanel(); });
+
+    /* ── Photo upload ─────────────────────────────────────────────────── */
+    photoUpload.addEventListener('click', () => photoInput.click());
+    photoInput.addEventListener('change', () => {
+      try {
+        const file = photoInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            spottedPhotoData = e.target.result;
+            photoPreview.src = spottedPhotoData;
+            photoPreview.style.display = 'block';
+            photoUpload.style.display  = 'none';
+          } catch(err) {}
+        };
+        reader.readAsDataURL(file);
+      } catch(err) { console.warn('spotted photo upload:', err); }
+    });
+
+    /* ── Create modal open ────────────────────────────────────────────── */
+    addBtn.addEventListener('click', () => {
+      try {
+        const now = Date.now();
+        if (now - lastSpottedTime < COOLDOWN_MS) {
+          const secs = Math.ceil((COOLDOWN_MS - (now - lastSpottedTime)) / 1000);
+          alert('Poczekaj ' + secs + ' sekund zanim dodasz następny Spotted.');
+          return;
+        }
+
+        // Reset form
+        spottedPendingLat = null;
+        spottedPendingLng = null;
+        spottedPhotoData  = null;
+        photoInput.value  = '';
+        photoPreview.style.display = 'none';
+        photoUpload.style.display  = '';
+        descInput.value   = '';
+        locInfo.textContent = '📍 Kliknij na mapę aby wybrać miejsce';
+        locInfo.classList.remove('done');
+        submitBtn.disabled = true;
+
+        backdrop.style.display = 'flex';
+        closePanel();
+      } catch(err) { console.warn('spotted addBtn:', err); }
+    });
+
+    /* ── Cancel ──────────────────────────────────────────────────────── */
+    cancelBtn.addEventListener('click', () => {
+      backdrop.style.display = 'none';
+      spottedPickMode = false;
+      map.getContainer().style.cursor = '';
+    });
+
+    /* ── Map click for location pick ─────────────────────────────────── */
+    map.on('click', function(e) {
+      if (!spottedPickMode) return;
+      try {
+        spottedPendingLat = e.latlng.lat;
+        spottedPendingLng = e.latlng.lng;
+        spottedPickMode   = false;
+        map.getContainer().style.cursor = '';
+        locInfo.textContent = '📍 Lokalizacja wybrana!';
+        locInfo.classList.add('done');
+        checkSpottedSubmit();
+      } catch(err) {}
+    });
+
+    locInfo.addEventListener('click', () => {
+      if (backdrop.style.display !== 'none') {
+        spottedPickMode = true;
+        map.getContainer().style.cursor = 'crosshair';
+      }
+    });
+
+    function checkSpottedSubmit() {
+      submitBtn.disabled = !(spottedPendingLat !== null && descInput.value.trim());
+    }
+    descInput.addEventListener('input', checkSpottedSubmit);
+
+    /* ── Submit ──────────────────────────────────────────────────────── */
+    submitBtn.addEventListener('click', () => {
+      try {
+        if (spottedPendingLat === null) return;
+        const desc = descInput.value.trim();
+        if (!desc) return;
+
+        const db = getSpottedDB();
+        if (!db) { alert('Brak połączenia z bazą danych.'); return; }
+
+        const spot = {
+          photo:  spottedPhotoData || null,
+          desc:   desc,
+          author: (typeof profile !== 'undefined' && profile) ? profile.name : 'Anonim',
+          lat:    spottedPendingLat,
+          lng:    spottedPendingLng,
+          ts:     Date.now()
+        };
+
+        const key = 'sp-' + Date.now();
+        try { db.get(key).put(spot); } catch(err) { console.warn('spotted gun.put:', err); }
+
+        lastSpottedTime = Date.now();
+        backdrop.style.display = 'none';
+        openPanel();
+      } catch(err) { console.warn('spotted submit:', err); }
+    });
+
+    /* ── Helpers ─────────────────────────────────────────────────────── */
+    function escH(s) {
+      return String(s || '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function timeAgo(ts) {
+      try {
+        const diff = Date.now() - ts;
+        if (diff <  60000)  return 'przed chwilą';
+        if (diff < 3600000) return Math.floor(diff/60000) + ' min temu';
+        if (diff < 86400000)return Math.floor(diff/3600000) + ' h temu';
+        return Math.floor(diff/86400000) + ' d temu';
+      } catch(e) { return ''; }
+    }
+
+    /* ── Render feed ─────────────────────────────────────────────────── */
+    function renderFeed() {
+      try {
+        feed.innerHTML = '';
+        const spots = Object.entries(cachedSpots)
+          .filter(([,v]) => v && v.ts)
+          .sort((a,b) => (b[1].ts||0) - (a[1].ts||0));
+
+        if (spots.length === 0) {
+          feed.innerHTML = '<div class="spotted-empty"><div class="spotted-empty-icon">📸</div><div>Brak Spotted w pobliżu</div><small>Bądź pierwszy — sfotografuj sąsiada!</small></div>';
+          return;
+        }
+
+        spots.forEach(([key, sp]) => {
+          try {
+            const card = document.createElement('div');
+            card.className = 'spotted-card';
+            const thumbHtml = sp.photo
+              ? `<img class="spotted-card-thumb" src="${sp.photo}" alt="Spotted">`
+              : `<div class="spotted-card-thumb-placeholder">📸</div>`;
+            const delBtn = (typeof isAdmin !== 'undefined' && isAdmin)
+              ? `<button class="spotted-card-del" data-key="${escH(key)}" title="Usuń">🗑</button>`
+              : '';
+            card.innerHTML = `
+              ${thumbHtml}
+              <div class="spotted-card-body">
+                <div class="spotted-card-desc">${escH(sp.desc)}</div>
+                <div class="spotted-card-meta">
+                  <span class="spm-author">${escH(sp.author||'Anonim')}</span>
+                  <span class="spotted-card-time">${timeAgo(sp.ts)}</span>
+                </div>
+              </div>
+              ${delBtn}`;
+
+            // Click → pan map to location
+            card.addEventListener('click', (e) => {
+              try {
+                if (e.target.classList.contains('spotted-card-del')) return;
+                if (sp.lat && sp.lng) {
+                  map.setView([sp.lat, sp.lng], map.getZoom(), { animate: true });
+                }
+              } catch(err) {}
+            });
+
+            // Delete
+            const del = card.querySelector('.spotted-card-del');
+            if (del) {
+              del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                try {
+                  if (!confirm('Usunąć tego Spotted?')) return;
+                  const k = del.dataset.key;
+                  const db = getSpottedDB();
+                  if (db) { try { db.get(k).put(null); } catch(err) {} }
+                  removeSpottedMarker(k);
+                  delete cachedSpots[k];
+                  renderFeed();
+                } catch(err) {}
+              });
+            }
+
+            feed.appendChild(card);
+          } catch(err) {}
+        });
+      } catch(err) { console.warn('spotted renderFeed:', err); }
+    }
+
+    /* ── Map markers ─────────────────────────────────────────────────── */
+    function addSpottedMarker(key, sp) {
+      try {
+        if (!sp || sp.lat == null || sp.lng == null) return;
+        removeSpottedMarker(key);
+
+        const html = sp.photo
+          ? `<img class="spotted-marker" src="${sp.photo}" alt="Spotted">`
+          : `<div class="spotted-marker-placeholder">📸</div>`;
+        const icon = L.divIcon({ html, className: '', iconSize:[48,48], iconAnchor:[24,24] });
+        const marker = L.marker([sp.lat, sp.lng], { icon }).addTo(map);
+
+        marker.on('click', () => {
+          try {
+            const photoHtml = sp.photo
+              ? `<img class="spotted-popup-photo" src="${sp.photo}" alt="Spotted">`
+              : '';
+            const delBtn = (typeof isAdmin !== 'undefined' && isAdmin)
+              ? `<button class="spotted-popup-del" id="spdel-${escH(key)}">🗑 Usuń Spotted</button>`
+              : '';
+            const content = `<div class="spotted-popup">
+              ${photoHtml}
+              <div class="spotted-popup-desc">${escH(sp.desc)}</div>
+              <div class="spotted-popup-meta">
+                <div>Autor: <span>${escH(sp.author||'Anonim')}</span></div>
+                <div>${timeAgo(sp.ts)}</div>
+              </div>
+              ${delBtn}
+            </div>`;
+            const popup = L.popup({ className:'rzaka-popup' })
+              .setLatLng([sp.lat,sp.lng])
+              .setContent(content)
+              .openOn(map);
+
+            // Bind delete after popup opens
+            setTimeout(() => {
+              const btn = document.getElementById('spdel-' + key);
+              if (btn) {
+                btn.addEventListener('click', () => {
+                  try {
+                    if (!confirm('Usunąć tego Spotted?')) return;
+                    const db = getSpottedDB();
+                    if (db) { try { db.get(key).put(null); } catch(err) {} }
+                    removeSpottedMarker(key);
+                    delete cachedSpots[key];
+                    renderFeed();
+                    map.closePopup();
+                  } catch(err) {}
+                });
+              }
+            }, 100);
+          } catch(err) { console.warn('spotted marker click:', err); }
+        });
+
+        spottedMarkers[key] = marker;
+      } catch(err) { console.warn('addSpottedMarker:', err); }
+    }
+
+    function removeSpottedMarker(key) {
+      try {
+        if (spottedMarkers[key]) {
+          map.removeLayer(spottedMarkers[key]);
+          delete spottedMarkers[key];
+        }
+      } catch(err) {}
+    }
+
+    /* ── Load from GunDB (auto-expire after 24h) ─────────────────────── */
+    const db = getSpottedDB();
+    if (db) {
+      try {
+        db.map().on(function(data, key) {
+          try {
+            if (!data || !key) {
+              // null → deleted
+              if (key && cachedSpots[key]) {
+                removeSpottedMarker(key);
+                delete cachedSpots[key];
+                renderFeed();
+              }
+              return;
+            }
+            if (!data.ts) return;
+
+            // 24h expiry
+            if (Date.now() - data.ts > 86400000) {
+              removeSpottedMarker(key);
+              delete cachedSpots[key];
+              return;
+            }
+
+            const isNew = !cachedSpots[key];
+            cachedSpots[key] = data;
+            addSpottedMarker(key, data);
+            if (isNew) renderFeed();
+            else renderFeed();
+          } catch(err) { console.warn('spotted gun.on:', err); }
+        });
+      } catch(err) { console.warn('spotted gun.map().on:', err); }
+    }
+
+    renderFeed();
+
+    // Periodically re-check isAdmin for delete buttons
+    setInterval(() => { try { renderFeed(); } catch(e) {} }, 5000);
+
+  } catch(err) { console.warn('initSpotted:', err); }
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FEATURE: MELANŻ (🎉)
+   Party / hangout announcements pinned on the map.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function initMelanz() {
+  try {
+
+    /* ── DOM refs ──────────────────────────────────────────────────────── */
+    const panel       = document.getElementById('melanzPanel');
+    const btnMelanz   = document.getElementById('btnMelanz');
+    const closeBtn    = document.getElementById('melanzClose');
+    const addBtn      = document.getElementById('melanzAddBtn');
+    const feed        = document.getElementById('melanzFeed');
+    const backdrop    = document.getElementById('melanzCreateBackdrop');
+    const titleInput  = document.getElementById('melanzTitle');
+    const timeInput   = document.getElementById('melanzTime');
+    const dateInput   = document.getElementById('melanzDate');
+    const contactInput= document.getElementById('melanzContact');
+    const infoInput   = document.getElementById('melanzInfo');
+    const locInfo     = document.getElementById('melanzLocInfo');
+    const submitBtn   = document.getElementById('melanzSubmit');
+    const cancelBtn   = document.getElementById('melanzCancel');
+
+    if (!panel || !btnMelanz) return;
+
+    /* ── GunDB ─────────────────────────────────────────────────────────── */
+    function getMelanzDB() {
+      try { return gun ? gun.get('rzaka-melanz') : null; } catch(e) { return null; }
+    }
+
+    /* ── State ─────────────────────────────────────────────────────────── */
+    let melanzPendingLat  = null;
+    let melanzPendingLng  = null;
+    let melanzPickMode    = false;
+    let selectedEmoji     = '🎉';
+    let cachedMelanze     = {}; // key → melanzObj
+    const melanzMarkers   = {}; // key → leaflet marker
+
+    // Set default date = today
+    try {
+      const today = new Date();
+      dateInput.value = today.toISOString().slice(0,10);
+    } catch(e) {}
+
+    /* ── Emoji picker ─────────────────────────────────────────────────── */
+    document.querySelectorAll('.melanz-emoji').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.melanz-emoji').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedEmoji = btn.dataset.emoji || '🎉';
+      });
+    });
+
+    /* ── Panel open / close ────────────────────────────────────────────── */
+    function openPanel() {
+      panel.classList.add('open');
+      btnMelanz.classList.add('open');
+    }
+    function closePanel() {
+      panel.classList.remove('open');
+      btnMelanz.classList.remove('open');
+    }
+    btnMelanz.addEventListener('click', () =>
+      panel.classList.contains('open') ? closePanel() : openPanel()
+    );
+    closeBtn.addEventListener('click', closePanel);
+    map.on('click', function() { if (!melanzPickMode) closePanel(); });
+
+    /* ── Create modal open ────────────────────────────────────────────── */
+    addBtn.addEventListener('click', () => {
+      try {
+        // Reset form
+        melanzPendingLat = null;
+        melanzPendingLng = null;
+        titleInput.value    = '';
+        contactInput.value  = '';
+        infoInput.value     = '';
+        timeInput.value     = '20:00';
+        try { dateInput.value = new Date().toISOString().slice(0,10); } catch(e){}
+        locInfo.textContent = '📍 Kliknij na mapę aby wybrać miejsce melanżu';
+        locInfo.classList.remove('done');
+        submitBtn.disabled  = true;
+        selectedEmoji = '🎉';
+        document.querySelectorAll('.melanz-emoji').forEach(b => b.classList.remove('active'));
+        const first = document.querySelector('.melanz-emoji[data-emoji="🎉"]');
+        if (first) first.classList.add('active');
+
+        backdrop.style.display = 'flex';
+        closePanel();
+      } catch(err) { console.warn('melanz addBtn:', err); }
+    });
+
+    /* ── Cancel ──────────────────────────────────────────────────────── */
+    cancelBtn.addEventListener('click', () => {
+      backdrop.style.display = 'none';
+      melanzPickMode = false;
+      map.getContainer().style.cursor = '';
+    });
+
+    /* ── Map click for location pick ─────────────────────────────────── */
+    map.on('click', function(e) {
+      if (!melanzPickMode) return;
+      try {
+        melanzPendingLat = e.latlng.lat;
+        melanzPendingLng = e.latlng.lng;
+        melanzPickMode   = false;
+        map.getContainer().style.cursor = '';
+        locInfo.textContent = '📍 Lokalizacja wybrana!';
+        locInfo.classList.add('done');
+        checkMelanzSubmit();
+      } catch(err) {}
+    });
+
+    locInfo.addEventListener('click', () => {
+      if (backdrop.style.display !== 'none') {
+        melanzPickMode = true;
+        map.getContainer().style.cursor = 'crosshair';
+      }
+    });
+
+    function checkMelanzSubmit() {
+      submitBtn.disabled = !(melanzPendingLat !== null && titleInput.value.trim());
+    }
+    titleInput.addEventListener('input', checkMelanzSubmit);
+
+    /* ── Submit ──────────────────────────────────────────────────────── */
+    submitBtn.addEventListener('click', () => {
+      try {
+        if (melanzPendingLat === null) return;
+        const title = titleInput.value.trim();
+        if (!title) return;
+
+        const db = getMelanzDB();
+        if (!db) { alert('Brak połączenia z bazą danych.'); return; }
+
+        const melanz = {
+          title:   title,
+          emoji:   selectedEmoji,
+          time:    timeInput.value   || '20:00',
+          date:    dateInput.value   || new Date().toISOString().slice(0,10),
+          contact: contactInput.value.trim() || '',
+          info:    infoInput.value.trim()    || '',
+          author:  (typeof profile !== 'undefined' && profile) ? profile.name : 'Anonim',
+          lat:     melanzPendingLat,
+          lng:     melanzPendingLng,
+          ts:      Date.now()
+        };
+
+        const key = 'ml-' + Date.now();
+        try { db.get(key).put(melanz); } catch(err) { console.warn('melanz gun.put:', err); }
+
+        backdrop.style.display = 'none';
+        openPanel();
+      } catch(err) { console.warn('melanz submit:', err); }
+    });
+
+    /* ── Helpers ─────────────────────────────────────────────────────── */
+    function escH(s) {
+      return String(s || '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function getMelanzStatus(m) {
+      try {
+        if (!m.date) return { label:'?', cls:'soon' };
+        const eventDt = new Date(m.date + (m.time ? 'T' + m.time : 'T00:00'));
+        const diffMs  = eventDt.getTime() - Date.now();
+        const endMs   = eventDt.getTime() + 12 * 3600 * 1000; // 12h after start
+        if (Date.now() > endMs) return { label:'ZAKOŃCZONY', cls:'past' };
+        if (diffMs < 0)         return { label:'TERAZ!',     cls:'now'  };
+        const hrs = Math.floor(diffMs / 3600000);
+        if (hrs < 1) {
+          const mins = Math.ceil(diffMs/60000);
+          return { label:'ZA ' + mins + ' MIN', cls:'now' };
+        }
+        if (hrs < 24) return { label:'ZA ' + hrs + ' H',   cls:'soon' };
+        const days = Math.floor(hrs/24);
+        return { label:'ZA ' + days + ' DNI', cls:'soon' };
+      } catch(e) { return { label:'?', cls:'soon' }; }
+    }
+
+    function isMelanzExpired(m) {
+      try {
+        if (!m.date) return false;
+        const eventDt = new Date(m.date + (m.time ? 'T' + m.time : 'T00:00'));
+        return Date.now() > eventDt.getTime() + 12 * 3600 * 1000;
+      } catch(e) { return false; }
+    }
+
+    function formatDateTime(m) {
+      try {
+        if (!m.date) return '';
+        const d = new Date(m.date);
+        const day   = d.getDate();
+        const month = d.getMonth() + 1;
+        const year  = d.getFullYear();
+        const dateStr = day + '.' + month + '.' + year;
+        return m.time ? dateStr + ' o ' + m.time : dateStr;
+      } catch(e) { return m.date || ''; }
+    }
+
+    /* ── Render feed ─────────────────────────────────────────────────── */
+    function renderFeed() {
+      try {
+        feed.innerHTML = '';
+        const items = Object.entries(cachedMelanze)
+          .filter(([,v]) => v && v.ts)
+          .sort((a,b) => {
+            // Sort: future/now first, then past
+            const ea = isMelanzExpired(a[1]);
+            const eb = isMelanzExpired(b[1]);
+            if (ea && !eb) return 1;
+            if (!ea && eb) return -1;
+            return (a[1].ts||0) - (b[1].ts||0);
+          });
+
+        if (items.length === 0) {
+          feed.innerHTML = '<div class="melanz-empty"><div class="melanz-empty-icon">🎉</div><div>Brak melanży w pobliżu</div><small>Ogłoś imprezę!</small></div>';
+          return;
+        }
+
+        const isAdminNow = typeof isAdmin !== 'undefined' && isAdmin;
+
+        items.forEach(([key, m]) => {
+          try {
+            const status  = getMelanzStatus(m);
+            const expired = status.cls === 'past';
+            const card    = document.createElement('div');
+            card.className = 'melanz-card' + (expired ? ' past' : '');
+
+            const delBtn = isAdminNow
+              ? `<button class="melanz-card-del" data-key="${escH(key)}" title="Usuń">🗑</button>`
+              : '';
+
+            card.innerHTML = `
+              <div class="melanz-card-badge ${status.cls}">${status.label}</div>
+              <div class="melanz-card-top">
+                <div class="melanz-card-emoji">${escH(m.emoji||'🎉')}</div>
+                <div class="melanz-card-info">
+                  <div class="melanz-card-title">${escH(m.title||'Melanż')}</div>
+                  <div class="melanz-card-time">📅 ${escH(formatDateTime(m))}</div>
+                  <div class="melanz-card-author">Dodał: ${escH(m.author||'Anonim')}</div>
+                </div>
+              </div>
+              ${m.contact ? `<div class="melanz-card-contact">📞 ${escH(m.contact)}</div>` : ''}
+              ${m.info    ? `<div class="melanz-card-info-text">💬 "${escH(m.info)}"</div>` : ''}
+              ${delBtn}`;
+
+            // Click → pan to location
+            card.addEventListener('click', (e) => {
+              try {
+                if (e.target.classList.contains('melanz-card-del')) return;
+                if (m.lat && m.lng) {
+                  map.setView([m.lat, m.lng], map.getZoom(), { animate: true });
+                }
+              } catch(err) {}
+            });
+
+            // Delete
+            const del = card.querySelector('.melanz-card-del');
+            if (del) {
+              del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                try {
+                  if (!confirm('Usunąć ten melanż?')) return;
+                  const k  = del.dataset.key;
+                  const db = getMelanzDB();
+                  if (db) { try { db.get(k).put(null); } catch(err) {} }
+                  removeMelanzMarker(k);
+                  delete cachedMelanze[k];
+                  renderFeed();
+                } catch(err) {}
+              });
+            }
+
+            feed.appendChild(card);
+          } catch(err) {}
+        });
+      } catch(err) { console.warn('melanz renderFeed:', err); }
+    }
+
+    /* ── Map markers ─────────────────────────────────────────────────── */
+    function addMelanzMarker(key, m) {
+      try {
+        if (!m || m.lat == null || m.lng == null) return;
+        removeMelanzMarker(key);
+
+        if (isMelanzExpired(m)) return; // don't show expired
+
+        const emoji = m.emoji || '🎉';
+        const html  = `<div class="melanz-emoji-marker">${emoji}</div>`;
+        const icon  = L.divIcon({ html, className:'', iconSize:[44,44], iconAnchor:[22,22] });
+        const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
+
+        marker.on('click', () => {
+          try {
+            const status = getMelanzStatus(m);
+            const isAdminNow = typeof isAdmin !== 'undefined' && isAdmin;
+            const delBtn = isAdminNow
+              ? `<button class="melanz-popup-del" id="mldel-${escH(key)}">🗑 Usuń melanż</button>`
+              : '';
+            const content = `<div class="melanz-popup">
+              <span class="melanz-popup-emoji">${escH(emoji)}</span>
+              <div class="melanz-popup-title">${escH(m.title||'Melanż')}</div>
+              <div class="melanz-popup-row">📅 <strong>${escH(formatDateTime(m))}</strong></div>
+              ${m.contact ? `<div class="melanz-popup-row">📞 ${escH(m.contact)}</div>` : ''}
+              ${m.info    ? `<div class="melanz-popup-row">💬 "${escH(m.info)}"</div>` : ''}
+              <div class="melanz-popup-row">Dodał: ${escH(m.author||'Anonim')}</div>
+              <div class="melanz-popup-row"><strong style="color:#ec4899">${status.label}</strong></div>
+              ${delBtn}
+            </div>`;
+            const popup = L.popup({ className:'rzaka-popup' })
+              .setLatLng([m.lat, m.lng])
+              .setContent(content)
+              .openOn(map);
+
+            setTimeout(() => {
+              const btn = document.getElementById('mldel-' + key);
+              if (btn) {
+                btn.addEventListener('click', () => {
+                  try {
+                    if (!confirm('Usunąć ten melanż?')) return;
+                    const db = getMelanzDB();
+                    if (db) { try { db.get(key).put(null); } catch(err) {} }
+                    removeMelanzMarker(key);
+                    delete cachedMelanze[key];
+                    renderFeed();
+                    map.closePopup();
+                  } catch(err) {}
+                });
+              }
+            }, 100);
+          } catch(err) { console.warn('melanz marker click:', err); }
+        });
+
+        melanzMarkers[key] = marker;
+      } catch(err) { console.warn('addMelanzMarker:', err); }
+    }
+
+    function removeMelanzMarker(key) {
+      try {
+        if (melanzMarkers[key]) {
+          map.removeLayer(melanzMarkers[key]);
+          delete melanzMarkers[key];
+        }
+      } catch(err) {}
+    }
+
+    /* ── Load from GunDB (auto-expire 12h after event time) ─────────── */
+    const db = getMelanzDB();
+    if (db) {
+      try {
+        db.map().on(function(data, key) {
+          try {
+            if (!data || !key) {
+              if (key && cachedMelanze[key]) {
+                removeMelanzMarker(key);
+                delete cachedMelanze[key];
+                renderFeed();
+              }
+              return;
+            }
+            if (!data.ts) return;
+
+            const expired = isMelanzExpired(data);
+            const isNew = !cachedMelanze[key];
+            cachedMelanze[key] = data;
+            if (!expired) addMelanzMarker(key, data);
+            else removeMelanzMarker(key);
+            if (isNew) renderFeed();
+            else renderFeed();
+          } catch(err) { console.warn('melanz gun.on:', err); }
+        });
+      } catch(err) { console.warn('melanz gun.map().on:', err); }
+    }
+
+    renderFeed();
+
+    // Periodically refresh (update badges, expire old melanże)
+    setInterval(() => {
+      try {
+        // Re-check expired markers
+        Object.entries(cachedMelanze).forEach(([key, m]) => {
+          try {
+            if (isMelanzExpired(m) && melanzMarkers[key]) {
+              removeMelanzMarker(key);
+            }
+          } catch(e) {}
+        });
+        renderFeed();
+      } catch(e) {}
+    }, 60000); // every minute
+
+  } catch(err) { console.warn('initMelanz:', err); }
+})();
