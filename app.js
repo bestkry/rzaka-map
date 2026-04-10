@@ -1263,9 +1263,7 @@ let chatDB = null;
 try {
   if (typeof Gun !== 'undefined') {
     gun = Gun([
-      'https://gun.eco/gun',
-      'https://peer.wallie.io/gun',
-      'https://plankton.shot.holbrook.io/gun'
+      'https://rzaka-relay.onrender.com/gun'
     ]);
     chatDB = gun.get('rzaka-osiedle-v1');
     console.log('GunDB: connected');
